@@ -1,0 +1,7 @@
+# The release script writes the Desktop zip here. It goes on the GitHub
+# release, never into git.
+dist/
+
+# The release checks run the unit tests inside the checkout.
+__pycache__/
+*.pyc

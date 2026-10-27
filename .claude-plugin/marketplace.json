@@ -1,0 +1,17 @@
+{
+  "name": "chatito",
+  "owner": {
+    "name": "Matthew Brandenburg",
+    "email": "matt.bran87@gmail.com"
+  },
+  "metadata": {
+    "description": "Chatito — a Simplified Technical English plugin for Claude. It puts readability first. Output gets shorter as a side effect of the language rules, not as a goal."
+  },
+  "plugins": [
+    {
+      "name": "simple-english",
+      "source": "./plugins/simple-english",
+      "description": "Simplified Technical English for expository writing — chat replies, commit messages, PR descriptions, code comments, and documents. Raises readability first and cuts length second. Two skills (all prose, or documents only), a linter, and an opt-in output style."
+    }
+  ]
+}

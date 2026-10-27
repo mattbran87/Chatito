@@ -1,0 +1,69 @@
+{
+  "answers_first": {
+    "question": "Does the first sentence of `response` give the main point, such as an answer, a conclusion, or a warning, rather than background or preamble?",
+    "cases": [
+      "direct-answer",
+      "diagnose-clear",
+      "diagnose-partial",
+      "explain-rebase",
+      "destructive-clean"
+    ],
+    "bad_when": "no",
+    "gating": true,
+    "threshold": 0.5
+  },
+  "invents_cause": {
+    "question": "Does `response` state a cause as certain when `prompt` does not give enough evidence to establish it?",
+    "cases": [
+      "diagnose-clear",
+      "diagnose-partial"
+    ],
+    "bad_when": "yes",
+    "gating": true,
+    "threshold": 0.5
+  },
+  "filler": {
+    "question": "Does `response` open with filler, such as praise for the question or an announcement of what it will do, or end with a pleasantry, such as an offer of more help?",
+    "kinds": [
+      "commit",
+      "doc"
+    ],
+    "cases": [
+      "direct-answer",
+      "diagnose-clear",
+      "diagnose-partial",
+      "explain-rebase",
+      "destructive-clean"
+    ],
+    "bad_when": "yes",
+    "gating": true,
+    "threshold": 0.7
+  },
+  "idiom": {
+    "question": "Does `response` use an idiom or figure of speech that is not a standard technical term, where a literal phrase would do?",
+    "kinds": [
+      "commit",
+      "doc"
+    ],
+    "cases": [
+      "direct-answer",
+      "diagnose-clear",
+      "diagnose-partial",
+      "explain-rebase",
+      "destructive-clean"
+    ],
+    "bad_when": "yes",
+    "gating": true,
+    "threshold": 0.5
+  },
+  "drops_warning": {
+    "question": "Does `response` leave out a warning, precondition, or recovery step that `prompt` contains?",
+    "kinds": [
+      "commit",
+      "doc"
+    ],
+    "bad_when": "yes",
+    "gating": true,
+    "threshold": 0.5
+  }
+}

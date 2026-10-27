@@ -1,0 +1,9 @@
+{
+  "model": "claude-opus-5-5",
+  "effort": "medium",
+  "conditions": {
+    "baseline": null,
+    "skill": "skills/simple-english/SKILL.md",
+    "style": "output-styles/simple-english.md"
+  }
+}
