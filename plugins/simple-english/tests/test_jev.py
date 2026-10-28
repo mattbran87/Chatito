@@ -1,6 +1,7 @@
 import contextlib
 import io
 import json
+import os
 import sys
 import tempfile
 import unittest
@@ -32,10 +33,42 @@ RESPONSES = stamp([{"case_id": "diag", "trial": 1, "condition": "skill", "ok": T
                    {"case_id": "diag", "trial": 1, "condition": "baseline", "ok": False, "error": "boom"}])
 
 
-def opted_in_repo(tmp):
-    (Path(tmp) / ".claude").mkdir()
-    (Path(tmp) / ".claude" / "jev.json").write_text(json.dumps({"simple_english_eval": {"enabled": True}}), encoding="utf-8")
-    return tmp
+# Variables that point git at a repository. A git hook that runs these tests
+# can set them, and git would then read the developer's own repository. This
+# copies GIT_REPOSITORY_VARS in plugins/session-tools/tests/digest_helpers.py,
+# because a plugin cannot import from another plugin.
+GIT_REPOSITORY_VARS = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_COMMON_DIR")
+
+
+class IsolatedHome(unittest.TestCase):
+    """Each test gets an empty home folder, so the real ~/.claude/jev-user.json plays no part.
+
+    feature_consent runs git in the repo_root folder. The git variables are
+    removed and the temporary folder is a ceiling, so git never finds the
+    developer's own repository.
+    """
+
+    def setUp(self):
+        home = tempfile.TemporaryDirectory()
+        self.addCleanup(home.cleanup)
+        self.home = home.name
+        patch = mock.patch.dict(os.environ, {"HOME": self.home, "USERPROFILE": self.home,
+                                             "GIT_CEILING_DIRECTORIES": tempfile.gettempdir()})
+        patch.start()
+        self.addCleanup(patch.stop)
+        for name in GIT_REPOSITORY_VARS:
+            os.environ.pop(name, None)
+
+    def opted_in(self, folder):
+        """Opt in through the user file, and return folder for use as repo_root."""
+        claude = Path(self.home) / ".claude"
+        claude.mkdir(exist_ok=True)
+        (claude / "jev-user.json").write_text(json.dumps({"simple_english_eval": {"enabled": True}}), encoding="utf-8")
+        return folder
+
+    def repo_file(self, folder, data):
+        (Path(folder) / ".claude").mkdir(exist_ok=True)
+        (Path(folder) / ".claude" / "jev.json").write_text(json.dumps(data), encoding="utf-8")
 
 
 class Sender:
@@ -62,12 +95,13 @@ class ClientTest(unittest.TestCase):
         client = jev.load_client()
         self.assertTrue(callable(client.ask))
         self.assertEqual(client.KEY_VAR, "TYPESAFE_API_KEY")
-        self.assertTrue(callable(client.feature_config))
+        self.assertTrue(callable(client.feature_consent))
+        self.assertFalse(hasattr(client, "feature_config"))
         self.assertTrue(callable(client.make_sender))
         self.assertTrue(callable(client.redact))
 
 
-class MaskHomeTest(unittest.TestCase):
+class MaskHomeTest(IsolatedHome):
     HOME = r"C:\Users\Jdoe"
 
     def test_the_home_folder_becomes_a_tilde_in_both_slash_styles_and_any_case(self):
@@ -95,7 +129,7 @@ class MaskHomeTest(unittest.TestCase):
         responses = stamp([dict(RESPONSES[0], text="The log at c:/users/jdoe/app.log and /home/jdoe/y")], cases)
         sender = Sender()
         with tempfile.TemporaryDirectory() as tmp:
-            jev.jev_run(cases, responses, QUESTIONS, Path(tmp) / "j.jsonl", opted_in_repo(tmp),
+            jev.jev_run(cases, responses, QUESTIONS, Path(tmp) / "j.jsonl", self.opted_in(tmp),
                         {"TYPESAFE_API_KEY": "k"}, cfg=CFG, sender_factory=sender.factory, home=self.HOME)
         state = sender.bodies[0]["state"]
         self.assertEqual(state["prompt"], r"Read ~\app.log")
@@ -110,7 +144,7 @@ class QuestionsTest(unittest.TestCase):
                          {"type": "noul", "instructions": "Filler?"})
 
 
-class JevRunTest(unittest.TestCase):
+class JevRunTest(IsolatedHome):
     def test_not_opted_in_sends_nothing(self):
         sender = Sender()
         with tempfile.TemporaryDirectory() as tmp:
@@ -119,16 +153,47 @@ class JevRunTest(unittest.TestCase):
                                   cfg=CFG, sender_factory=sender.factory)
             rows = common.read_jsonl(out)
         self.assertEqual(sender.bodies, [])
-        self.assertEqual(summary, {"sent": 0, "reason": "not-opted-in", "failed": {}, "stopped": None})
-        self.assertEqual([r["reason"] for r in rows], ["not-opted-in"])
+        self.assertEqual(summary, {"sent": 0, "reason": "not opted in", "failed": {}, "stopped": None})
+        self.assertEqual([r["reason"] for r in rows], ["not opted in"])
         self.assertEqual(rows[0]["text_hash"],
                          jev.row_hash(CASES[0], "R" * 5000, jev.request_questions(QUESTIONS, CASES[0])))
+
+    def test_an_old_repository_opt_in_no_longer_counts(self):
+        sender = Sender()
+        with tempfile.TemporaryDirectory() as tmp:
+            self.repo_file(tmp, {"simple_english_eval": {"enabled": True}})
+            summary = jev.jev_run(CASES, RESPONSES, QUESTIONS, Path(tmp) / "j.jsonl", tmp, {"TYPESAFE_API_KEY": "k"},
+                                  cfg=CFG, sender_factory=sender.factory)
+        self.assertEqual(sender.bodies, [])
+        self.assertEqual(summary["reason"], "not opted in")
+
+    def test_a_failed_consent_check_reads_as_off(self):
+        sender = Sender()
+        client = jev.load_client()
+        with tempfile.TemporaryDirectory() as tmp, \
+                mock.patch.object(client, "feature_consent", side_effect=RuntimeError("boom")):
+            out = Path(tmp) / "j.jsonl"
+            summary = jev.jev_run(CASES, RESPONSES, QUESTIONS, out, self.opted_in(tmp), {"TYPESAFE_API_KEY": "k"},
+                                  client=client, cfg=CFG, sender_factory=sender.factory)
+            rows = common.read_jsonl(out)
+        self.assertEqual(sender.bodies, [])
+        self.assertEqual(summary["reason"], "consent check failed")
+        self.assertEqual([r["reason"] for r in rows], ["consent check failed"])
+
+    def test_a_repository_that_forbids_sends_nothing(self):
+        sender = Sender()
+        with tempfile.TemporaryDirectory() as tmp:
+            self.repo_file(tmp, {"simple_english_eval": {"allowed": False}})
+            summary = jev.jev_run(CASES, RESPONSES, QUESTIONS, Path(tmp) / "j.jsonl", self.opted_in(tmp),
+                                  {"TYPESAFE_API_KEY": "k"}, cfg=CFG, sender_factory=sender.factory)
+        self.assertEqual(sender.bodies, [])
+        self.assertEqual(summary["reason"], "repository forbids")
 
     def test_no_key_sends_nothing(self):
         sender = Sender()
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp) / "j.jsonl"
-            summary = jev.jev_run(CASES, RESPONSES, QUESTIONS, out, opted_in_repo(tmp), {},
+            summary = jev.jev_run(CASES, RESPONSES, QUESTIONS, out, self.opted_in(tmp), {},
                                   cfg=CFG, sender_factory=sender.factory)
             rows = common.read_jsonl(out)
         self.assertEqual(sender.bodies, [])
@@ -140,7 +205,7 @@ class JevRunTest(unittest.TestCase):
         sender = Sender()
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp) / "jev.jsonl"
-            summary = jev.jev_run(CASES, RESPONSES, QUESTIONS, out, opted_in_repo(tmp), {"TYPESAFE_API_KEY": "k"},
+            summary = jev.jev_run(CASES, RESPONSES, QUESTIONS, out, self.opted_in(tmp), {"TYPESAFE_API_KEY": "k"},
                                   cfg=CFG, sender_factory=sender.factory)
             rows = common.read_jsonl(out)
         self.assertEqual(summary, {"sent": 1, "reason": None, "failed": {}, "stopped": None})
@@ -155,7 +220,7 @@ class JevRunTest(unittest.TestCase):
     def test_a_failed_call_stores_the_reason_and_a_rerun_retries_it(self):
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp) / "jev.jsonl"
-            repo = opted_in_repo(tmp)
+            repo = self.opted_in(tmp)
             jev.jev_run(CASES, RESPONSES, QUESTIONS, out, repo, {"TYPESAFE_API_KEY": "k"},
                         cfg=CFG, sender_factory=Sender(status=500).factory)
             failed = common.read_jsonl(out)[0]
@@ -172,7 +237,7 @@ class JevRunTest(unittest.TestCase):
     def test_a_changed_response_text_is_sent_to_jev_again(self):
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp) / "jev.jsonl"
-            repo = opted_in_repo(tmp)
+            repo = self.opted_in(tmp)
             jev.jev_run(CASES, RESPONSES, QUESTIONS, out, repo, {"TYPESAFE_API_KEY": "k"},
                         cfg=CFG, sender_factory=Sender().factory)
             changed = [dict(RESPONSES[0], text="T" * 100)] + RESPONSES[1:]
@@ -188,7 +253,7 @@ class JevRunTest(unittest.TestCase):
     def test_a_changed_or_added_question_is_asked_again_and_same_inputs_are_skipped(self):
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp) / "jev.jsonl"
-            repo = opted_in_repo(tmp)
+            repo = self.opted_in(tmp)
             env = {"TYPESAFE_API_KEY": "k"}
             jev.jev_run(CASES, RESPONSES, QUESTIONS, out, repo, env, cfg=CFG, sender_factory=Sender().factory)
             same = Sender()
@@ -210,7 +275,7 @@ class JevRunTest(unittest.TestCase):
             env = {"TYPESAFE_API_KEY": "k"}
             jev.jev_run(CASES, RESPONSES, QUESTIONS, out, bare, env, cfg=CFG, sender_factory=Sender().factory)
             sender = Sender()
-            jev.jev_run(CASES, RESPONSES, QUESTIONS, out, opted_in_repo(tmp), env, cfg=CFG, sender_factory=sender.factory)
+            jev.jev_run(CASES, RESPONSES, QUESTIONS, out, self.opted_in(tmp), env, cfg=CFG, sender_factory=sender.factory)
         self.assertEqual(len(sender.bodies), 1)
 
     def test_secrets_are_redacted_before_the_cut(self):
@@ -220,7 +285,7 @@ class JevRunTest(unittest.TestCase):
         cases = [CASES[0], dict(CASES[1], kind="chat")]
         sender = Sender()
         with tempfile.TemporaryDirectory() as tmp:
-            jev.jev_run(cases, responses, QUESTIONS, Path(tmp) / "j.jsonl", opted_in_repo(tmp),
+            jev.jev_run(cases, responses, QUESTIONS, Path(tmp) / "j.jsonl", self.opted_in(tmp),
                         {"TYPESAFE_API_KEY": "k"}, cfg=CFG, sender_factory=sender.factory)
         sent = [body["state"]["response"] for body in sender.bodies]
         self.assertEqual(len(sent), 2)
@@ -231,7 +296,7 @@ class JevRunTest(unittest.TestCase):
 
     def test_failures_are_counted_by_reason(self):
         with tempfile.TemporaryDirectory() as tmp:
-            summary = jev.jev_run(CASES, RESPONSES, QUESTIONS, Path(tmp) / "j.jsonl", opted_in_repo(tmp),
+            summary = jev.jev_run(CASES, RESPONSES, QUESTIONS, Path(tmp) / "j.jsonl", self.opted_in(tmp),
                                   {"TYPESAFE_API_KEY": "k"}, cfg=CFG, sender_factory=Sender(status=500).factory)
         self.assertEqual(summary, {"sent": 1, "reason": None, "failed": {"http-500": 1}, "stopped": None})
 
@@ -241,7 +306,7 @@ class JevRunTest(unittest.TestCase):
                           cases)
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp) / "j.jsonl"
-            repo = opted_in_repo(tmp)
+            repo = self.opted_in(tmp)
             env = {"TYPESAFE_API_KEY": "k"}
             denied = Sender(status=401)
             summary = jev.jev_run(cases, responses, QUESTIONS, out, repo, env, cfg=CFG, sender_factory=denied.factory)
@@ -257,7 +322,7 @@ class JevRunTest(unittest.TestCase):
         sender = Sender()
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp) / "j.jsonl"
-            summary = jev.jev_run(CASES, RESPONSES, QUESTIONS, out, opted_in_repo(tmp), {"TYPESAFE_API_KEY": "k"},
+            summary = jev.jev_run(CASES, RESPONSES, QUESTIONS, out, self.opted_in(tmp), {"TYPESAFE_API_KEY": "k"},
                                   cfg=dict(CFG, model="m2"), sender_factory=sender.factory)
             self.assertFalse(out.exists())
         self.assertEqual(sender.bodies, [])
@@ -272,7 +337,7 @@ class JevRunTest(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp) / "j.jsonl"
-            jev.jev_run(CASES, RESPONSES, QUESTIONS, out, opted_in_repo(tmp), {"TYPESAFE_API_KEY": "k"},
+            jev.jev_run(CASES, RESPONSES, QUESTIONS, out, self.opted_in(tmp), {"TYPESAFE_API_KEY": "k"},
                         cfg=CFG, sender_factory=Extra().factory)
             rows = common.read_jsonl(out)
         self.assertEqual(rows[0]["answers"], {"filler": 0.2, "invents_cause": 0.2})

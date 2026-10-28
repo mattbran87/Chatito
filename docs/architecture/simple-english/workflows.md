@@ -28,6 +28,9 @@ flowchart TD
     D -->|"document, from simple-english"| REF["load skills/simple-english/references/documents.md"]
     D -->|"document, from simple-english-docs"| L
     REF --> L["Self-Check: ste_lint.py, fix ERRORs, judge reviews, rerun with --quiet"]
+    S1 -.->|"Claude Code: arms"| H["hooks/register.ts lints each .md Write or Edit, 2 passes per file"]
+    S2 -.->|"Claude Code: arms"| H
+    H -.-> L
     L --> F
 ```
 
@@ -37,6 +40,14 @@ Each skill carries its own copy of the linter, in
 `skills/simple-english/scripts/ste_lint.py` and
 `skills/simple-english-docs/scripts/ste_lint.py`. Neither SKILL.md sets
 `allowed-tools`.
+
+In Claude Code, `hooks/register.ts` runs the linter without a step from
+Claude. A `skill.prompt` hook, or a `tool.call` hook on the `Skill` tool, arms
+it when either skill loads. Then a `tool.call` hook on `Write` and `Edit` runs
+`skills/simple-english-docs/scripts/ste_lint.py --quiet` on each Markdown file,
+at most 2 times per file, and adds the output to the tool result's `context`.
+The armed flag and the pass counts live in `$.state`, declared in
+`types/index.d.ts`.
 
 ## Eval pipeline
 

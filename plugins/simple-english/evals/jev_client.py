@@ -15,6 +15,7 @@ import math
 import os
 import re
 import socket
+import subprocess
 import time
 import urllib.error
 import urllib.request
@@ -41,24 +42,6 @@ SECRET_PATTERNS = [
     (re.compile(r"""\b((?:[A-Za-z0-9]+[_-])*(?:password|passwd|secret|token|api[_-]?key)(?:[_-][A-Za-z0-9]+)*)(["']?[ \t]*[:=][ \t]*)("(?:[^"\\]|\\.)*"|'[^']*'|[^ \t\r\n,;}\]]+)""", re.I | re.A),
      r"\1\2" + REDACTED),
 ]
-
-
-def feature_config(repo_root, feature):
-    """The feature's block from <repo_root>/.claude/jev.json when it is enabled, else None.
-
-    A missing or malformed file means the repo has not opted in. Only a literal
-    `true` enables a feature, so a typo never sends data.
-    """
-    path = os.path.join(repo_root, ".claude", "jev.json")
-    try:
-        with open(path, encoding="utf-8") as handle:
-            data = json.load(handle)
-    except (OSError, ValueError):
-        return None
-    block = data.get(feature) if isinstance(data, dict) else None
-    if isinstance(block, dict) and block.get("enabled") is True:
-        return block
-    return None
 
 
 # Consent per docs/jev-contract.md, "Opt-in": the first row that matches decides.
@@ -135,6 +118,81 @@ def consent(feature, repo_file, git_opt_out, user_file, folder, windows):
     if block is not None and block.get("enabled") is True:
         return {"on": True}
     return {"on": False, "reason": "not opted in"}
+
+
+# Gather the consent inputs for one feature. The TypeScript twin is jevInputs
+# in commit-scope's jev.ts. Only a missing git or a clean "not a git
+# repository" counts as outside git. Any other git failure is an unknown
+# repository and comes back as an opt-out value, so a git error never turns a
+# feature on.
+
+GIT_TIMEOUT_SECONDS = 10
+_NOT_A_REPOSITORY = re.compile(r"not a git repository", re.I)
+
+
+def _read_file(path):
+    """The file's text, or None when it does not exist.
+
+    A file that exists but cannot be read comes back as "", which does not
+    parse, so consent treats it as broken rather than as missing.
+    """
+    try:
+        with open(path, encoding="utf-8") as handle:
+            return handle.read()
+    except FileNotFoundError:
+        return None
+    except (OSError, UnicodeDecodeError):
+        return ""
+
+
+def _git(folder, args, run):
+    """(exit code, stdout, stderr) of one git call. The code is None when git is missing."""
+    try:
+        done = run(["git", *args], cwd=folder, capture_output=True, text=True,
+                   encoding="utf-8", errors="replace", timeout=GIT_TIMEOUT_SECONDS)
+    except FileNotFoundError:
+        return None, "", ""
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
+        return -1, "", str(error)
+    return done.returncode, done.stdout or "", done.stderr or ""
+
+
+def _git_inputs(feature, folder, run):
+    """(toplevel or None, the git opt-out value or None) for `folder`."""
+    code, out, err = _git(folder, ["rev-parse", "--show-toplevel"], run)
+    if code == 0 and out.strip():
+        toplevel = out.strip()
+    elif code is None or (code == 128 and _NOT_A_REPOSITORY.search(err)):
+        return None, None
+    else:
+        return None, "error (rev-parse exit %s)" % code
+    code, out, _ = _git(folder, ["config", "--local", "--get", "jev.%s.optout" % feature], run)
+    if code == 0:
+        return toplevel, out.strip()
+    if code == 1:  # the key is unset
+        return toplevel, None
+    return toplevel, "error (config exit %s)" % code
+
+
+def feature_consent(feature, folder, home=None, run=subprocess.run):
+    """{"on": bool, "reason": str or None, "block": dict} per docs/jev-contract.md."""
+    # `folder` is the session's folder. abspath resolves "." and "..", so a
+    # relative path cannot step around an opt_out_folders entry. `home` holds
+    # .claude/jev-user.json and defaults to the user's home folder. `run`
+    # stands in for subprocess.run in tests. `block` is the repository file's
+    # block for the feature, or {}, so a caller can read its tuning keys.
+    folder = os.path.abspath(folder)
+    if not os.path.isdir(folder):
+        # A folder that is gone would read as outside git, where no git
+        # opt-out applies. Its repository is unknown, so it counts as an opt-out.
+        return {"on": False, "reason": "you opted out", "block": {}}
+    home = os.path.expanduser("~") if home is None else home
+    toplevel, git_opt_out = _git_inputs(feature, folder, run)
+    repo_file = _read_file(os.path.join(toplevel or folder, ".claude", "jev.json"))
+    user_file = _read_file(os.path.join(home, ".claude", "jev-user.json"))
+    result = consent(feature, repo_file, git_opt_out, user_file, folder, os.name == "nt")
+    return {"on": result["on"], "reason": result.get("reason"),
+            "block": _block(_parse_object(repo_file), feature) or {}}
 
 
 def redact(text, key=None):

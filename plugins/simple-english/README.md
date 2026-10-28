@@ -114,6 +114,16 @@ python3 plugins/simple-english/skills/simple-english/scripts/ste_lint.py --selft
 A clean linter run does not mean a clean document. Noun clusters, list
 parallelism, front-loading, and undefined jargon still need a read.
 
+## Lint hook
+
+In Claude Code, a hook runs the linter for you. It starts after Claude loads `simple-english` or `simple-english-docs` in a session. From then on, each `Write` or `Edit` of a `.md` file runs `skills/simple-english-docs/scripts/ste_lint.py --quiet` on that file. Claude reads the findings after the tool result. You do not see them.
+
+The hook lints each file at most 2 times, the same limit as the skills' "stop after this second pass". A new skill load starts the count again. If no Python starts, or the linter fails, Claude reads `simple-english lint did not run` and the reason. Then the skills tell Claude to run the linter itself. A pass that did not run still counts toward the 2. The write always completes.
+
+The hook does not see a file that a shell command writes, such as `cat > notes.md`. Where an organization manages Claude Code, a skill started by its slash command does not start the hook. The hook starts when Claude loads the skill through the Skill tool. Once a skill loads, the hook lints every Markdown file Claude writes in that session, such as a CHANGELOG or a plan, not only the document you asked for.
+
+Claude Desktop shows hooks grayed out in chat, so Desktop chat users get the skill wording and the `Lint:` line, not the hook. There, the skills tell Claude to write the document to a file, lint it, and end the reply with a `Lint:` line. A reply with no `Lint:` line tells you the check did not run.
+
 ## Turn a skill off
 
 Add this to `~/.claude/settings.json`, or to `.claude/settings.json` in one

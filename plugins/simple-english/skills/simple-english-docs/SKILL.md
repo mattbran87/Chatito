@@ -144,7 +144,10 @@ These rules govern the prose you write. They do not govern text that another aut
 
 1. Run any other review this document needs first — spec coverage, template conformance, naming consistency. This style pass goes last, so it cannot invalidate a check that ran before it.
 2. Read for the rules a search cannot reach: long sentences, passive voice used where you know the actor, ambiguous modals, noun clusters over 3 words, undefined jargon, non-parallel lists, and bare state-claims that name no mechanism.
-3. Run `python3 "<base>/scripts/ste_lint.py" <file>` once, and fall back to `python` on Windows. `<base>` is the base directory for this skill, given to you when the skill loads; a relative `scripts/` path resolves inside the user's project, where the script does not exist. Fix everything it found in one pass: resolve every ERROR, judge each review hit. Run it once more with `--quiet` to confirm, then stop. A third pass rarely finds what a careful second pass missed.
+3. **Lint the document from a file.** If the document exists only in your reply, write it to a file before you show it. Use the outputs folder when the environment gives one, or a scratch folder. Run `python3 "<base>/scripts/ste_lint.py" <file>` once, and fall back to `python` on Windows. `<base>` is the base directory for this skill, given to you when the skill loads; a relative `scripts/` path resolves inside the user's project, where the script does not exist. Fix everything it found in one pass: resolve every ERROR, judge each review hit. Run it once more with `--quiet` to confirm, then stop. A third pass rarely finds what a careful second pass missed.
+
+   If a `simple-english lint` message follows your write, the plugin's hook ran the linter for you, unless the message says `did not run`. When it ran, do not run the linter yourself on that file. Fix what the message lists, and make all the fixes in one write. The hook's message after that write is the second pass, and it checks the finished file. When it did not run, run the linter yourself as above.
+
    Run `--selftest` only after an install, after anyone edits the linter, or when a clean result looks wrong.
 4. For each hit, apply the rewrite. Re-read the result. If the rewrite reads more stilted or circuitous than the original, keep the clearer sentence. Do not revert the whole document.
 5. **Account for every warning in the source.** When you edited an existing document, list each warning, caveat, failure mode, precondition, and recovery step the original carried. Check that each one survives. A style pass may reword a warning. It may never delete one, or a word such as "silently" or "only" that sets its risk. No linter reaches this check. Reading your own draft does not reach it either. Only a comparison against the source text does.
@@ -152,6 +155,14 @@ These rules govern the prose you write. They do not govern text that another aut
 7. **Read only the first line of each section, then only the last line of the document.** Each first line gives the section's point. If the last line is a recap or a pleasantry, delete it.
 8. Check for idioms, and check that the document holds every word, field, and format that the request or the template requires.
 9. Finalize only once the scans come back clean, or each remaining hit is one you chose to keep.
+10. End your reply with one line that gives the lint result, in one of these forms:
+
+    ```
+    Lint: ste_lint.py ran on <file> — <n> errors fixed, <m> review hits kept.
+    Lint: did not run — <reason>.
+    ```
+
+    `<n>` is the ERROR count of the first run, by you or by the hook. `<m>` is the review hits you left unchanged after the last run. This line is for documents only. A commit message or a chat reply gets no `Lint:` line.
 
 ### Tier 1 — resolve every hit
 
@@ -221,7 +232,7 @@ These seven catch misreadings the rules above do not prevent on their own.
 |---|---|
 | Dropping a warning, a caveat, or a failure mode to make the document shorter | The hard floor forbids this outright. Blind judges caught exactly this: a rollback warning about silent fallback to smaller pool defaults vanished from the shorter version. Shorten the wording, keep the fact. |
 | Flattening a table or list into prose because prose runs shorter | Structure earns its place when it does work prose cannot. Two dimensions of data belong in a table. |
-| Skipping the search because the document reads clean | A stacked auxiliary hides easily in a long sentence. The search costs one command; reading alone misses hits. |
+| Skipping the search because the document reads clean | A stacked auxiliary hides easily in a long sentence. The search costs one command; reading alone misses hits. The reply's `Lint:` line shows the user whether the check ran. |
 | Driving tier 2 hits to zero | "Pay by standing order" and "the case is closed" both match a tier 2 pattern, and both read correctly. |
 | Running `--selftest` before every document | The code is deterministic. Run it after an install, after an edit, or when a clean result looks wrong. |
 | Stripping gerund labels out of a list | "**Over-tightening.**" names a failure mode. Rewriting such labels into "Do not..." sentences flattens a scannable list. |

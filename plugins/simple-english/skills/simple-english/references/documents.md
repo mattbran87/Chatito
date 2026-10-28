@@ -20,11 +20,13 @@ A document differs from a chat reply in one way that matters: you can search the
 ## Self-Check Before Finalizing
 
 1. Run any other review this document needs first — spec coverage, template conformance, naming consistency. This style pass goes last, so it cannot invalidate a check that ran before it.
-2. Run the linter once. `<base>` is the base directory for this skill, given to you when the skill loads. A path relative to the working directory resolves inside the user's project, where the script does not exist. Quote the script path and write it with forward slashes, because on Windows the base directory can hold backslashes or spaces. Use `python3`, and fall back to `python` on Windows.
+2. If the document exists only in your reply, write it to a file before you show it. Use the outputs folder when the environment gives one, or a scratch folder. Run the linter once on that file. `<base>` is the base directory for this skill, given to you when the skill loads. A path relative to the working directory resolves inside the user's project, where the script does not exist. Quote the script path and write it with forward slashes, because on Windows the base directory can hold backslashes or spaces. Use `python3`, and fall back to `python` on Windows.
 
    ```
    python3 "<base>/scripts/ste_lint.py" path/to/document.md
    ```
+
+   If a `simple-english lint` message follows your write, the plugin's hook ran the linter for you, unless the message says `did not run`. When it ran, do not run the linter yourself on that file. Fix what the message lists, and make all the fixes in one write. The hook's message after that write is the second pass, and it checks the finished file. Skip the command in step 4 too. When it did not run, run the linter yourself as in step 2, or follow "Without Python" when Python is missing.
 
 3. Fix everything it found in one pass. Resolve every `ERROR`. Judge each `review` hit and keep the ones that read better — a counterfactual keeps its "would", a UI label keeps its own word.
 4. Run it once more to confirm, with `--quiet` to skip the footer you already read:
@@ -37,6 +39,14 @@ A document differs from a chat reply in one way that matters: you can search the
 5. Read for the rules the linter cannot reach. It says nothing about noun clusters, list parallelism, one term per concept beyond its fixed table, front-loading, jargon left undefined, or whether a claim names its mechanism.
 6. For each fix, re-read the result. If the rewrite reads more stilted or circuitous than the original, keep the clearer sentence. Do not revert the whole document.
 7. Confirm that no edit changed an identifier. A style pass that renames something breaks the naming consistency step 1 approved.
+8. End your reply with one line that gives the lint result, in one of these forms:
+
+   ```
+   Lint: ste_lint.py ran on <file> — <n> errors fixed, <m> review hits kept.
+   Lint: did not run — <reason>.
+   ```
+
+   `<n>` is the ERROR count of the first run, by you or by the hook. `<m>` is the review hits you left unchanged after the last run. This line is for documents only. A commit message or a chat reply gets no `Lint:` line.
 
 ## Verifying the Linter Itself
 
@@ -79,4 +89,4 @@ Then read for the rest.
 | Reading a clean linter run as a clean document | It reaches 10 rules. Noun clusters, parallelism, front-loading, and undefined jargon still need a read. |
 | Running `--selftest` before every document | The code is deterministic. Run it after an install, after an edit, or when a clean result looks wrong. |
 | Driving tier 2 hits to zero | "Pay by standing order" and "the case is closed" both match a pattern, and both read correctly. |
-| Skipping the check because the document reads clean | A stacked auxiliary hides easily in a long sentence. The check costs one command. |
+| Skipping the check because the document reads clean | A stacked auxiliary hides easily in a long sentence. The check costs one command. The reply's `Lint:` line shows the user whether the check ran. |

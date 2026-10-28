@@ -1,8 +1,10 @@
 """Stage 4: Jev nouls for each response, per docs/jev-contract.md. See README.md.
 
-Sends nothing unless .claude/jev.json enables "simple_english_eval" and
-TYPESAFE_API_KEY is set. Every failure fails open: the row stores the reason,
-and the other stages still run.
+Sends nothing unless the contract client's feature_consent says
+"simple_english_eval" is on (an opt-in in ~/.claude/jev-user.json, no opt-out,
+and no "allowed": false in the repository file) and TYPESAFE_API_KEY is set.
+Every failure fails open: the row stores the reason, and the other stages
+still run.
 """
 
 import argparse
@@ -95,8 +97,14 @@ def jev_run(cases, responses, questions, out_path, repo_root, env, client=None, 
     failed = summary["failed"]
     streak_reason, streak = None, 0
     key = (env.get(client.KEY_VAR) or "").strip()
-    if client.feature_config(str(repo_root), FEATURE) is None:
-        summary["reason"] = "not-opted-in"
+    try:
+        consent = client.feature_consent(FEATURE, str(repo_root))
+    except Exception:
+        # A consent check that breaks never turns the stage on, and each row
+        # records why instead of the run ending in a traceback.
+        consent = {"on": False, "reason": "consent check failed", "block": {}}
+    if not consent["on"]:
+        summary["reason"] = consent["reason"]
     elif not key:
         summary["reason"] = "no-key"
     reason = summary["reason"]

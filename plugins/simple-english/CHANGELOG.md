@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-10-28
+
+- **A hook lints each Markdown file that Claude writes after a simple-english skill loads, in Claude Code.** It runs `ste_lint.py --quiet` after each `Write` or `Edit` of a `.md` file, at most 2 times per file, and gives Claude the findings. The skills also tell Claude to write a chat-only document to a file first and to end the reply with a `Lint:` line, for Claude Desktop, where chat shows hooks grayed out. In 2 Claude Desktop runs of the same README prompt, run 1 loaded `simple-english-docs` and ran no linter. Live check: a `claude -p --plugin-dir` session on 2026-10-28 (session `597ae804`) got `simple-english lint, pass 1 of 2` with both planted errors. Both the `skill.prompt` hook and the `Skill` tool hook ran, and the debug log had no `bypassed by` line. A `--plugin-dir` load is not a marketplace install, so that run does not test the managed-organization bypass of `skill.prompt`. A Claude Desktop check on 2026-10-28 installed a release zip that holds `hooks/` and `types/`. Desktop accepted the zip, both skills loaded, and the document reply ended with a `Lint:` line.
+
+## 2026-10-27
+
+- **`"simple_english_eval": { "enabled": true }` in `.claude/jev.json` no longer turns the eval's Jev stage on.** Put the same block in `~/.claude/jev-user.json`. Opt one clone out with `git config --local jev.simple_english_eval.optout true`. `evals/jev.py` calls the contract client's `feature_consent`, and a row that sends nothing stores the consent reason, such as `not opted in`, in place of `not-opted-in`.
+
 ## 2026-10-23
 
 - The output style puts a caveat about what Claude cannot see after the first sentence of a reply, not before it. A style run tested the cycle 3 style against cycle 2 and found blockers fall from 10 to 5. See `evals/FINDINGS-2026-10-23-style3.md`.

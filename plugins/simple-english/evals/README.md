@@ -7,6 +7,8 @@ does a rule change make them better still?
 Design: `2026-10-20-simple-english-eval-design.md`, in the specs folder of the
 development repository.
 
+> **The Jev opt-in moved (2026-10-27).** `"simple_english_eval": { "enabled": true }` in `.claude/jev.json` no longer turns the Jev stage on. Put the same block in `~/.claude/jev-user.json`.
+
 | Condition | Text added to the system prompt |
 | --- | --- |
 | `baseline` | None, except the no-tools note that every condition gets (see Limits) |
@@ -76,17 +78,20 @@ For the judge, a reply that is not valid score JSON is a failed call. Check
 `claude` and the network, then rerun.
 
 **Jev sends data only when you opt in.** Add
-`"simple_english_eval": { "enabled": true }` to `.claude/jev.json` and set
-`TYPESAFE_API_KEY`. Each send holds the case prompt and the response, cut to
-4,000 characters and redacted. Before the redaction, `jev.py` also masks
-local paths: `C:\Users\<name>\` becomes `~\`, and the name inside any other
-path becomes `[user]` (names of 4 or more characters only). This masking is
+`"simple_english_eval": { "enabled": true }` to `~/.claude/jev-user.json` and
+set `TYPESAFE_API_KEY`. The user file covers every clone. To opt one clone
+out, run `git config --local jev.simple_english_eval.optout true` in it. The
+rules are in `docs/jev-contract.md`. Each send holds the case prompt and the
+response, cut to 4,000 characters and redacted. Before the redaction,
+`jev.py` also masks local paths: `C:\Users\<name>\` becomes `~\`, and the
+name inside any other path becomes `[user]` (names of 4 or more characters
+only). This masking is
 local to the eval and does not change the Jev contract or the client.
-Without the opt-in, the Jev column shows `not-opted-in` and the other judges
-still run.
+Without the opt-in, the Jev column shows the consent reason, such as
+`not opted in`, and the other judges still run.
 
-If your repository tracks `.claude/jev.json`, the file turns features on for
-everyone who pulls it. Make the opt-in edit locally, and never commit it.
+An `"enabled": true` in the repository's `.claude/jev.json` does not count.
+Never commit one: older clients read it as an opt-in for everyone who pulls.
 
 ## Stale rows
 

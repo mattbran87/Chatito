@@ -13,7 +13,7 @@ table in `plugins/simple-english/README.md` lists:
 | File | Turns on | Size |
 | --- | --- | ---: |
 | `skills/simple-english/SKILL.md` | Claude invokes it for any expository prose, or you type its slash command, /simple-english:simple-english | 18,145 bytes |
-| `skills/simple-english-docs/SKILL.md` | Claude invokes it for a project document only | 22,273 bytes |
+| `skills/simple-english-docs/SKILL.md` | Claude invokes it for a project document only | 23,377 bytes |
 | `output-styles/simple-english.md` | You select it in the /output-style picker, and then it applies to every reply | 10,550 bytes |
 
 The sizes come from `wc -c`. The next 3 sentences describe how Claude Code
@@ -40,6 +40,11 @@ the scope differs:
   send" list. Its check item 1 also says that a caveat about what you cannot
   see comes after the first sentence. The cycle 3 style run added that line
   (`FINDINGS-2026-10-23-style3.md`).
+
+A fourth file, `hooks/register.ts`, carries no rules. In Claude Code, it runs
+the linter on each Markdown file that Claude writes after either skill loads.
+`docs/architecture/simple-english/workflows.md`, "Runtime path", shows where it
+joins the runtime path.
 
 `plugins/simple-english/README.md` says to use 1 skill, not both. The `simple-english` description
 says to choose it instead of a document-only style skill.
@@ -135,7 +140,7 @@ folder holds the files in the "Writes" column.
 | `evals/generate.py` | `evals/cases.jsonl`, `evals/conditions.json`, each condition file, its own earlier rows, the spend in `responses.jsonl` and `scores.jsonl` | `responses.jsonl` | yes, 1 `claude` call per case, trial, and condition, with up to 3 tries | every row is current (exit 0) |
 | `evals/lint.py` | `responses.jsonl`, `evals/cases.jsonl`, `evals/conditions.json`, the linter, its own earlier rows | `lint.jsonl` | no | every current response of a case without `"lint": false` has a current row (exit 0) |
 | `evals/judge.py` | `responses.jsonl`, `evals/cases.jsonl`, `evals/conditions.json`, `evals/rubric.md`, its own earlier rows, the spend in `responses.jsonl` and `scores.jsonl` | `scores.jsonl` | yes, 1 `claude` call per case and trial group, with up to 2 attempts | every group is current (exit 0) |
-| `evals/jev.py` | `responses.jsonl`, `evals/cases.jsonl`, `evals/conditions.json`, `evals/jev_questions.json`, `.claude/jev.json`, its own earlier rows | `jev.jsonl` | yes, to Jev at `api.typesafe.ai` only after the opt-in; no `claude` calls | every current response has a current row (exit 0) |
+| `evals/jev.py` | `responses.jsonl`, `evals/cases.jsonl`, `evals/conditions.json`, `evals/jev_questions.json`, `.claude/jev.json`, `~/.claude/jev-user.json`, its own earlier rows | `jev.jsonl` | yes, to Jev at `api.typesafe.ai` only after the opt-in; no `claude` calls | every current response has a current row (exit 0) |
 | `evals/report.py` | all 4 row files, `evals/cases.jsonl`, `evals/conditions.json`, `evals/rubric.md`, `evals/jev_questions.json` | `report.md` | no | after 1 pass. With `--reference` and `--candidate`, it exits 0 when the gate passes, 1 when it fails, and 2 when it refuses; it also exits 2 when the run has no responses |
 
 The stages also stop early:
@@ -189,12 +194,13 @@ they showed, so 2 runs are their whole evidence.
 
 `evals/jev.py` asks Jev, the TypeSafe model, up to 5 yes-or-no questions per
 response from
-`evals/jev_questions.json`. It sends nothing unless `.claude/jev.json` holds
-`"simple_english_eval": { "enabled": true }` and `TYPESAFE_API_KEY` holds a
-key. Without the opt-in, each row stores the reason `not-opted-in`, and the
-other stages still run. A tracked `.claude/jev.json` turns features on for
-everyone who pulls it, so the evals README says to make the opt-in edit
-locally and never commit it.
+`evals/jev_questions.json`. It sends nothing unless `~/.claude/jev-user.json`
+holds `"simple_english_eval": { "enabled": true }` and `TYPESAFE_API_KEY`
+holds a key. `evals/jev.py` asks the contract client's `feature_consent`, so
+an opt-out with `git config --local jev.simple_english_eval.optout true` and
+an `"allowed": false` block in the repository's `.claude/jev.json` also keep
+it off. Then each row stores the consent reason, such as `not opted in`, and
+the other stages still run.
 
 Each send holds the case prompt and the response, each cut to 4,000
 characters (`CAP`). `jev.mask_home` hides the home folder and the user name,
