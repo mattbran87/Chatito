@@ -37,8 +37,7 @@ Every rule below serves those goals. **When a rule fights them, the goals win.**
 
 ## When to Use
 
-- Apply to a new document, or to a substantial rewrite of an existing one — README, docs/*.md, design doc, spec, requirements doc, post-mortem, status report.
-- Skip for minor edits (typo fixes, link updates, small clarifications) — the overhead outweighs the benefit on trivial changes.
+Apply this skill to a new document, or to a substantial rewrite of an existing one: a README, docs/*.md, a design doc, a spec, a requirements doc, a post-mortem, or a status report. Skip it for minor edits such as typo fixes, link updates, and small clarifications, where the overhead outweighs the benefit.
 
 **Expository documents only.** These rules fit prose that informs or explains. Do not apply them to a persuasive document (marketing copy, a pitch deck, a proposal written to sell) or to narrative and ceremonial writing (a speech, a story, a personal letter). Those genres run on rhythm, idiom, and cadence, and these rules strip all three — the output then reads like translated text. For that work, write naturally and say nothing about these rules.
 
@@ -65,7 +64,6 @@ These rules govern the prose you write. They do not govern text that another aut
 - **Put the condition before the command, and separate them with a comma.** Write "If the build fails, read the log," never "Read the log if the build fails." A reader who meets the action first performs it, then discovers the condition never applied. The order costs nothing and prevents a wrong action.
 - **Hold a paragraph to one topic and about 6 sentences.** A longer block hides its own structure and the reader loses the thread. Split where the topic turns.
 - Do not drop a verb, subject, or article to shorten a sentence. That buys brevity with ambiguity.
-- Use a numbered or bulleted list for complex or sequential material. A reader scans a list and re-reads a dense paragraph.
 
 ## Verb and Tense
 
@@ -119,7 +117,14 @@ These rules govern the prose you write. They do not govern text that another aut
   - **Exception — RFC 2119 documents.** If the document declares RFC 2119 / RFC 8174 keywords, MUST / SHOULD / MAY carry defined normative force. Keep them exactly as the author graded them. Never promote a deliberate SHOULD to a MUST to satisfy this rule.
 - Give a precise count instead of "some," "several," or "a few," whenever a precise count exists **and you know it**. Never invent a number to replace a vague word. A wrong number is worse than no number.
 - **Do not state a configurable default, limit, timeout, or retention period from memory.** These values change between versions and configurations. State one only when the request, the code, or a cited source gives it. Otherwise, name the setting that holds the value: "check `gc.reflogExpireUnreachable`", not "Git keeps them for 90 days". A fixed, well-known value needs no check. HTTPS uses port 443, so write "443".
-- **Use the literal phrase, not an idiom.** "out of the box" → "by default". "under the hood" → "inside". "a moving target" → "changes often". An idiom makes a reader who learned English as a second language guess. A standard technical term stays, even when it began as a figure of speech: "race condition", "bottleneck", "cache hit".
+- **Use the literal word, not a picture.** If a word makes the reader picture something that is not there, write what the thing does or what state it is in:
+  - "the old key is dead" → "the old key no longer works"
+  - "leaves the old price live" → "the old price still shows"
+  - "ran clean for hours" → "ran for 3 hours with no errors"
+  - "Browsers check back on each visit" → "The browser sends a new request on each visit"
+  - "out of the box" → "by default"
+
+  A term that is the field's name for a thing stays, even when it began as a picture: "race condition," "bottleneck," "cache lifetime." An ordinary word that you put on a technical noun as a description does not stay, even when the field uses it in another term. A figurative word makes a reader who learned English as a second language guess.
 - **Use American English spelling.** "color" not "colour," "organize" not "organise," "center" not "centre," "traveled" not "travelled," "defense" not "defence," "catalog" not "catalogue," "analyze" not "analyse," "gray" not "grey." Two cases override this rule:
   - An identifier, a quoted string, or a proper noun keeps its own spelling. The exemptions cover these already.
   - A document that already uses another convention consistently keeps that convention. This follows the partial-edit rule: one file with two spellings costs the reader more than either convention alone.
@@ -140,6 +145,52 @@ These rules govern the prose you write. They do not govern text that another aut
 - **Put the preview before a destructive command.** When a procedure deletes or overwrites data, give its dry run or preview first. Then tell the reader to read that output. Give the real command last. A reader who copies the first command they see must not lose data.
 - **The rules hold for the whole document.** They apply to the last section as much as to the first.
 
+## Emphasis
+
+**Keyword labels mark what the reader must act on.** A label is one of 6 fixed uppercase words in bold, followed by a colon, at the start of a paragraph or list item, such as `**WARNING:** this deletes the remote branch.`
+
+| Label | Marks |
+| --- | --- |
+| `WARNING` | Harm the reader cannot undo: data loss, deleted history, a secret pushed to a public repository, a change to production |
+| `CAUTION` | Harm the reader can undo, at a cost: a broken build, spent quota, a long cleanup |
+| `BLOCKED` | Work that cannot continue, and the cause |
+| `ACTION` | A step only the user can take |
+| `UNVERIFIED` | A fact you did not check |
+| `ASSUMED` | A decision you made for the user without asking |
+
+- **Most replies need no label.** A label marks the exception. If every reply carries one, the reader stops seeing them.
+- **A label marks a risk or a gap, never advice.** "Log purge failures" is advice, so write it as a plain sentence. Before you add a label, name the harm or the unknown that it marks.
+- **Use only these 6 words.** Never invent a label such as NOTE or IMPORTANT. The reader has no way to learn its meaning.
+- **Give 1 label to 1 sentence or 1 short paragraph.** When 2 labels fit, use the one higher in the table.
+- **A label adds to a warning. It never replaces the warning's words.** The hard floor still applies.
+- **`BLOCKED` names why the work stopped, and `ACTION` names the step that clears it.** Use them as a pair when a block needs the user.
+- **`ACTION` covers tasks, not questions.** A question stays a question.
+- **4 labels speak only to the user.** Put `BLOCKED`, `ACTION`, `UNVERIFIED`, and `ASSUMED` in a reply, never in a commit message, a code comment, or a document for other readers. `WARNING` and `CAUTION` can go in any of them.
+- **In a commit message, write the label without bold.** Git shows no bold.
+
+**Bold inside a sentence marks one word the reader must not miss.** Bold that opens a paragraph or list item and ends with a full stop or colon is a lead-in. It names the topic and stays allowed. Any other bold is emphasis:
+
+- Bold a word that sets the risk of its sentence: "silently," "only," "at most," "never," a negation the reader could miss, or a number the reader acts on.
+- Bold a word or a short phrase, never a whole sentence. If a sentence needs that weight, give it a label.
+- Use at most 1 emphasis bold span per paragraph.
+
+## Choose the form
+
+Pick the form from the reader's task, not from the length it saves.
+
+| Form | Use it when | Do not use it when |
+| --- | --- | --- |
+| Prose | Each sentence depends on the one before: a cause, then its effect, then the fix | The items stand alone, and the reader must find one |
+| Bulleted list | 3 or more parallel items, in no fixed order | 2 items, which fit in one sentence with "and" |
+| Numbered list | Steps the reader does in order, or items you refer to later by number | The order carries no meaning |
+| Table | 2 or more items compared on 2 or more attributes | Only 1 attribute, which is a list, or cells that need full sentences |
+| Heading | A reply or document with 3 or more separate topics | A chat reply with one topic |
+| Code block | A command, code, or exact output | Never skip it for these |
+
+- **Nest a list 1 level deep at most.** A third level means the content needs a heading or a table.
+- **Hold a table cell to one short phrase or one sentence.** A cell that needs 2 sentences belongs in prose under the table.
+- **Do not break a causal chain into bullets.** A list drops the "because" and "so" that carry the reasoning, and the reader then cannot see the mechanism.
+
 ## Self-Check Before Finalizing
 
 1. Run any other review this document needs first — spec coverage, template conformance, naming consistency. This style pass goes last, so it cannot invalidate a check that ran before it.
@@ -153,7 +204,7 @@ These rules govern the prose you write. They do not govern text that another aut
 5. **Account for every warning in the source.** When you edited an existing document, list each warning, caveat, failure mode, precondition, and recovery step the original carried. Check that each one survives. A style pass may reword a warning. It may never delete one, or a word such as "silently" or "only" that sets its risk. No linter reaches this check. Reading your own draft does not reach it either. Only a comparison against the source text does.
 6. Confirm that no edit changed an identifier. A style pass that renames something breaks the naming consistency step 1 approved.
 7. **Read only the first line of each section, then only the last line of the document.** Each first line gives the section's point. If the last line is a recap or a pleasantry, delete it.
-8. Check for idioms, and check that the document holds every word, field, and format that the request or the template requires.
+8. Read each verb and adjective that describes a technical noun as a reader who translates word by word. If the literal meaning is wrong for that noun, replace the word. Check that the document holds every word, field, and format that the request or the template requires.
 9. Finalize only once the scans come back clean, or each remaining hit is one you chose to keep.
 10. End your reply with one line that gives the lint result, in one of these forms:
 
@@ -170,6 +221,12 @@ Stacked auxiliaries — present perfect and past perfect. A suffix rule alone mi
 
 ```
 \b(has|have|had)\b(\s+\b(not|never|already|just|also|only|recently|always)\b)?\s+(\w+ed|been|become|begun|broken|brought|built|bought|caught|chosen|come|done|drawn|driven|eaten|fallen|felt|flown|forgotten|found|given|gone|got|gotten|grown|heard|held|kept|known|laid|led|left|lent|lost|made|meant|met|paid|put|read|risen|run|said|seen|sent|set|shown|sold|spoken|spent|stood|taken|taught|told|thought|thrown|understood|won|written)\b
+```
+
+Labels that are not on the list. Search case-insensitively, because `**Note:**` breaks the rule as much as `**NOTE:**`. Replace each hit with a listed label, or delete the label:
+
+```
+\*\*(NOTE|NB|IMPORTANT|TIP|HINT|INFO|FYI|DANGER|ALERT|ATTENTION|CRITICAL|TODO):\*\*
 ```
 
 ### Tier 2 — review each hit, then keep or rewrite
@@ -226,17 +283,19 @@ If your search tool reports a pattern as invalid, it lacks `\b` support. Fall ba
 
 ## Common Mistakes
 
-These seven catch misreadings the rules above do not prevent on their own.
+These nine catch misreadings the rules above do not prevent on their own.
 
 | Mistake | Reality |
 |---|---|
-| Dropping a warning, a caveat, or a failure mode to make the document shorter | The hard floor forbids this outright. Blind judges caught exactly this: a rollback warning about silent fallback to smaller pool defaults vanished from the shorter version. Shorten the wording, keep the fact. |
-| Flattening a table or list into prose because prose runs shorter | Structure earns its place when it does work prose cannot. Two dimensions of data belong in a table. |
-| Skipping the search because the document reads clean | A stacked auxiliary hides easily in a long sentence. The search costs one command; reading alone misses hits. The reply's `Lint:` line shows the user whether the check ran. |
+| Dropping a warning, a caveat, or a failure mode to make the document shorter | The hard floor forbids this, so shorten the wording and keep the fact: blind judges caught a shorter version that dropped a rollback warning about silent fallback to smaller pool defaults. |
+| Flattening a table or list into prose because prose runs shorter | Keep structure that does work prose cannot, such as two dimensions of data in a table. |
+| Skipping the search because the document reads clean | The search costs one command and finds the stacked auxiliary that a read misses in a long sentence. The reply's `Lint:` line shows the user whether the check ran. |
 | Driving tier 2 hits to zero | "Pay by standing order" and "the case is closed" both match a tier 2 pattern, and both read correctly. |
-| Running `--selftest` before every document | The code is deterministic. Run it after an install, after an edit, or when a clean result looks wrong. |
-| Stripping gerund labels out of a list | "**Over-tightening.**" names a failure mode. Rewriting such labels into "Do not..." sentences flattens a scannable list. |
-| Enforcing STE's ~900-word controlled dictionary | This skill omits the dictionary. Only the structural rules above apply. |
+| Running `--selftest` before every document | The code is deterministic, so run it only after an install, after an edit, or when a clean result looks wrong. |
+| Stripping gerund labels out of a list | "**Over-tightening.**" names a failure mode, and a rewrite into "Do not..." sentences flattens a scannable list. |
+| Enforcing STE's ~900-word controlled dictionary | This skill omits the dictionary, so only the structural rules above apply. |
+| Labeling every reply, or every risk in a reply | A label marks the exception, so most replies need none, and the reader stops seeing labels that appear everywhere. |
+| Bolding a whole sentence for weight | A bold sentence is a label without a name, so give it the label that fits, or bold only the word that sets its risk. |
 
 ## Attribution
 

@@ -382,5 +382,34 @@ class SpentTest(unittest.TestCase):
             self.assertAlmostEqual(common.spent(tmp), 0.75)
 
 
+class LoadCasesOnlyTest(unittest.TestCase):
+    def test_no_variable_loads_every_case(self):
+        with mock.patch.dict(os.environ):
+            os.environ.pop(common.ONLY_ENV, None)
+            every = common.read_jsonl(common.EVALS_DIR / "cases.jsonl")
+            self.assertEqual(len(common.load_cases()), len(every))
+
+    def test_variable_keeps_the_named_cases_in_file_order(self):
+        with mock.patch.dict(os.environ, {common.ONLY_ENV: "toast, direct-answer"}):
+            self.assertEqual([case["id"] for case in common.load_cases()], ["direct-answer", "toast"])
+
+    def test_unknown_case_id_raises(self):
+        with mock.patch.dict(os.environ, {common.ONLY_ENV: "direct-answer,no-such-case"}):
+            with self.assertRaisesRegex(ValueError, "no-such-case"):
+                common.load_cases()
+
+
+class LoadCasesNoIdsTest(unittest.TestCase):
+    def test_value_with_no_case_ids_raises(self):
+        with mock.patch.dict(os.environ, {common.ONLY_ENV: ","}):
+            with self.assertRaisesRegex(ValueError, common.ONLY_ENV):
+                common.load_cases()
+
+    def test_whitespace_only_value_loads_every_case(self):
+        with mock.patch.dict(os.environ, {common.ONLY_ENV: "  "}):
+            every = common.read_jsonl(common.EVALS_DIR / "cases.jsonl")
+            self.assertEqual(len(common.load_cases()), len(every))
+
+
 if __name__ == "__main__":
     unittest.main()

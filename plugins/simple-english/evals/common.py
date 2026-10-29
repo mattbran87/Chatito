@@ -99,8 +99,22 @@ def strip_frontmatter(text):
     return text.strip()
 
 
+# A comma-separated list of case ids. When set, every stage loads only those cases.
+ONLY_ENV = "SIMPLE_ENGLISH_EVAL_ONLY"
+
+
 def load_cases(path=None):
-    return read_jsonl(path or EVALS_DIR / "cases.jsonl")
+    cases = read_jsonl(path or EVALS_DIR / "cases.jsonl")
+    only = os.environ.get(ONLY_ENV, "").strip()
+    if not only:
+        return cases
+    wanted = {part.strip() for part in only.split(",") if part.strip()}
+    if not wanted:
+        raise ValueError("%s names no case ids: %r" % (ONLY_ENV, only))
+    unknown = sorted(wanted - {case["id"] for case in cases})
+    if unknown:
+        raise ValueError("%s names unknown cases: %s" % (ONLY_ENV, ", ".join(unknown)))
+    return [case for case in cases if case["id"] in wanted]
 
 
 def load_conditions(path=None):

@@ -62,20 +62,28 @@ def text_hash(text):
     return common.input_hash(text, LINTER_SOURCE + "\x00" + SELF_SOURCE)
 
 
-def run_linter(text):
+def _lint(text, scope):
+    """Run ste_lint.py with scope "--prose" or "--structure" on text, and return its findings."""
     with tempfile.TemporaryDirectory(prefix="se-lint-") as tmp:
         path = os.path.join(tmp, "response.md")
         with open(path, "w", encoding="utf-8", newline="") as handle:
-            handle.write(prepare(text))
-        done = subprocess.run([sys.executable, str(LINTER), "--json", path],
+            handle.write(text)
+        done = subprocess.run([sys.executable, str(LINTER), "--json", scope, path],
                               capture_output=True, text=True, encoding="utf-8", errors="replace")
     detail = (done.stderr or done.stdout or "")[:300]
     if done.returncode not in (0, 1) or "Traceback" in done.stderr:
         raise RuntimeError("ste_lint.py failed: " + detail)
     try:
-        findings = json.loads(done.stdout)[path]
+        return json.loads(done.stdout)[path]
     except (ValueError, KeyError, TypeError):
         raise RuntimeError("ste_lint.py gave unusable output: " + detail)
+
+
+def run_linter(text):
+    """Prose rules read prepare()'s text. Structure rules read the original layout,
+    because prepare() unpacks the tables and nested lists that those rules check."""
+    raw = text.replace("\r\n", "\n").replace("\r", "\n")
+    findings = _lint(prepare(text), "--prose") + _lint(raw, "--structure")
     errors = reviews = 0
     by_rule = {}
     for finding in findings:

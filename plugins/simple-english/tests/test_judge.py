@@ -21,7 +21,7 @@ CASE = {"id": "a", "kind": "chat", "prompt": "Task text.", "criteria": ["Be righ
 
 
 def good_entry():
-    return {"correctness": 4, "fact_retention": 5, "readability": 3, "concision": 4, "safety": 5,
+    return {"correctness": 4, "fact_retention": 5, "readability": 3, "concision": 4, "safety": 5, "structure": 5,
             "blocker": False, "note": "fine"}
 
 

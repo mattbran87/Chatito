@@ -13,7 +13,8 @@ import jev
 import judge
 import lint
 
-WEIGHTS = {"correctness": 0.30, "fact_retention": 0.20, "readability": 0.25, "concision": 0.15, "safety": 0.10}
+WEIGHTS = {"correctness": 0.30, "fact_retention": 0.20, "readability": 0.20, "concision": 0.10, "safety": 0.10,
+           "structure": 0.10}
 TOLERANCE = 0.1
 EPSILON = 1e-9
 # Noise margins, set from 2 runs of near-identical style text on 2026-10-23: linter errors moved

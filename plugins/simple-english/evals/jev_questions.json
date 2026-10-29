@@ -6,7 +6,12 @@
       "diagnose-clear",
       "diagnose-partial",
       "explain-rebase",
-      "destructive-clean"
+      "destructive-clean",
+      "compare-options",
+      "ordered-steps",
+      "causal-chain",
+      "risky-unverified",
+      "plain-answer"
     ],
     "bad_when": "no",
     "gating": true,
@@ -33,7 +38,12 @@
       "diagnose-clear",
       "diagnose-partial",
       "explain-rebase",
-      "destructive-clean"
+      "destructive-clean",
+      "compare-options",
+      "ordered-steps",
+      "causal-chain",
+      "risky-unverified",
+      "plain-answer"
     ],
     "bad_when": "yes",
     "gating": true,
@@ -50,7 +60,12 @@
       "diagnose-clear",
       "diagnose-partial",
       "explain-rebase",
-      "destructive-clean"
+      "destructive-clean",
+      "compare-options",
+      "ordered-steps",
+      "causal-chain",
+      "risky-unverified",
+      "plain-answer"
     ],
     "bad_when": "yes",
     "gating": true,
@@ -64,6 +79,48 @@
     ],
     "bad_when": "yes",
     "gating": true,
+    "threshold": 0.5
+  },
+  "table_missed": {
+    "question": "Does `response` compare 2 or more items on 2 or more attributes in prose or a list rather than in a table?",
+    "cases": [
+      "compare-options"
+    ],
+    "bad_when": "yes",
+    "gating": false,
+    "threshold": 0.5
+  },
+  "chain_bulleted": {
+    "question": "Does `response` split a cause-and-effect explanation into separate bullet points, so the words that link each cause to its effect are lost?",
+    "cases": [
+      "causal-chain"
+    ],
+    "bad_when": "yes",
+    "gating": false,
+    "threshold": 0.5
+  },
+  "label_misgraded": {
+    "question": "Does `response` mark a risk the reader can undo with the word WARNING, or mark a risk the reader cannot undo with the word CAUTION?",
+    "cases": [
+      "risky-unverified",
+      "destructive-clean"
+    ],
+    "bad_when": "yes",
+    "gating": false,
+    "threshold": 0.5
+  },
+  "label_overuse": {
+    "question": "Does `response` put an uppercase label such as WARNING, CAUTION, BLOCKED, ACTION, UNVERIFIED, or ASSUMED on a sentence where nothing is risky, unchecked, assumed, blocked, or left for the user to do?",
+    "cases": [
+      "plain-answer",
+      "direct-answer",
+      "compare-options",
+      "ordered-steps",
+      "causal-chain",
+      "explain-rebase"
+    ],
+    "bad_when": "yes",
+    "gating": false,
     "threshold": 0.5
   }
 }

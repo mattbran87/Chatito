@@ -1,6 +1,6 @@
 # simple-english evals
 
-This harness runs 15 cases under 3 conditions and scores every response with
+This harness runs 20 cases under 3 conditions and scores every response with
 3 judges. It answers one question: do the rules make a response better, and
 does a rule change make them better still?
 
@@ -17,9 +17,9 @@ development repository.
 
 | Judge | Measures |
 | --- | --- |
-| `ste_lint.py` | The 10 rules a regex can find |
-| Claude, blind | 5 dimensions, with all conditions side by side. The labels run A, B, C, D, and so on, 1 for each condition. |
-| Jev | 5 narrow yes-or-no questions, one response at a time |
+| `ste_lint.py` | The 16 rules a regex can find. Prose rules read the unpacked text, and structure rules read the original layout |
+| Claude, blind | 6 dimensions, with all conditions side by side. The labels run A, B, C, D, and so on, 1 for each condition. |
+| Jev | 9 narrow yes-or-no questions, one response at a time |
 
 ## Run it
 
@@ -127,6 +127,25 @@ report. When you skip a stage, the gate refuses:
   partial.
 - A skipped `lint.py` or `jev.py` leaves lint rows or gating Jev answers
   missing.
+
+## Run a subset of cases
+
+Set `SIMPLE_ENGLISH_EVAL_ONLY` to a comma-separated list of case ids. Every
+stage then loads only those cases, so set the same value for every stage of a
+run. An unknown id stops the stage with an error. Give a subset run its own
+run id, never one that already holds responses for other cases.
+
+```
+SIMPLE_ENGLISH_EVAL_ONLY=compare-options,plain-answer python3 generate.py --run-id 2026-10-29 --budget-usd 5
+```
+
+In PowerShell, set the variable and run the stage in one command:
+
+```
+$env:SIMPLE_ENGLISH_EVAL_ONLY = 'compare-options,plain-answer'; python generate.py --run-id 2026-10-29 --budget-usd 5
+```
+
+Clear the variable before you run the unit tests. `test_data.py` counts every case.
 
 ## Compare a rule change
 

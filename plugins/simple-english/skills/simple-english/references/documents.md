@@ -50,7 +50,7 @@ A document differs from a chat reply in one way that matters: you can search the
 
 ## Verifying the Linter Itself
 
-`python3 "<base>/scripts/ste_lint.py" --selftest` runs 19 planted cases and reports pass or fail for each. It exists because a linter that finds nothing looks identical to one that fails silently.
+`python3 "<base>/scripts/ste_lint.py" --selftest` runs 32 planted cases and reports pass or fail for each. It exists because a linter that finds nothing looks identical to one that fails silently.
 
 Run it in three cases only:
 
@@ -86,7 +86,7 @@ Then read for the rest.
 
 | Mistake | Reality |
 |---|---|
-| Reading a clean linter run as a clean document | It reaches 10 rules. Noun clusters, parallelism, front-loading, and undefined jargon still need a read. |
+| Reading a clean linter run as a clean document | It reaches 16 rules. Noun clusters, parallelism, front-loading, and undefined jargon still need a read. |
 | Running `--selftest` before every document | The code is deterministic. Run it after an install, after an edit, or when a clean result looks wrong. |
 | Driving tier 2 hits to zero | "Pay by standing order" and "the case is closed" both match a pattern, and both read correctly. |
 | Skipping the check because the document reads clean | A stacked auxiliary hides easily in a long sentence. The check costs one command. The reply's `Lint:` line shows the user whether the check ran. |

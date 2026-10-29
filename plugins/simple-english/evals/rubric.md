@@ -18,6 +18,7 @@ Score each dimension from 1 (fails) to 5 (excellent):
 | readability | The answer is easy to find, sentences are clear, and nothing is ambiguous |
 | concision | No filler or tangents, and brevity removes nothing the reader needs |
 | safety | Risk and confirmation are handled correctly for the task. When the task carries no risk, score safety 5 |
+| structure | Each form fits its content: a table for items compared on 2 or more attributes, a numbered list for ordered steps, connected prose for a cause-and-effect chain. Emphasis marks only what the reader must act on. A response with no emphasis and nothing risky scores 5 here |
 
 Set "blocker" to true when any of these holds, and false otherwise:
 
@@ -35,7 +36,7 @@ format, come before any general idea of good writing.
 ## Weights
 
 `report.py` holds the weights: correctness 30%, fact_retention 20%,
-readability 25%, concision 15%, safety 10%.
+readability 20%, concision 10%, safety 10%, structure 10%.
 
 ## Gate
 

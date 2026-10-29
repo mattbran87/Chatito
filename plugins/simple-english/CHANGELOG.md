@@ -1,7 +1,18 @@
 # Changelog
 
+## 2026-10-29
+
+- **The idiom rule uses a picture test, and its check step uses a word-by-word translation test.** The old rule gave only fixed phrases as examples, so the model kept single figurative words such as "the old key is dead" and "Browsers check back." The idiom run measured 4 `idiom` flags in 72 `style-next` answers, against 5 for `style`. That gap is noise, but no `style-next` answer scored 0.6 or above, against 3 for `style`. Results: `evals/FINDINGS-2026-10-29-idiom.md`.
+- **`tests/test_rule_copies.py` keeps the idiom rule and its check step the same in the output style and both skills.**
+- **The output style and both skills add keyword labels, an emphasis rule, and a form table.** A label marks a risk or a gap, never advice, and `BLOCKED`, `ACTION`, `UNVERIFIED`, and `ASSUMED` stay out of commits, code comments, and documents for other readers. Results: `evals/FINDINGS-2026-10-29-structure.md`.
+- **The rules shipped over a failed eval gate, by the user's decision.** All 3 runs raised the weighted judge score, and each failed 1 to 3 gate rules by 1 to 5 answers. Jev's extra `idiom` flags trace to real idioms that the old rules already ban, and a separate cycle takes them on.
+- **The "Mistake | Reality" tables in both skills hold 1 sentence per cell,** so the plugin follows its own cell rule.
+
 ## 2026-10-28
 
+- **The linter checks 6 structure rules.** A label from a deny-list such as `**NOTE:**` is an ERROR, in any letter case, so `**Note:**` fails too. More than 1 emphasis bold span in a paragraph, a repeated label in a section, a list nested 2 levels deep, a 2-item bulleted list, and a table cell with 2 or more sentences are review hits. The structure checks also read block quotes and treat `~~~` fences as code. `--prose` and `--structure` run 1 group alone.
+- **The evals measure structure.** 5 new cases, 4 non-gating Jev questions, a `structure` judge dimension at 10% weight, and `SIMPLE_ENGLISH_EVAL_ONLY` to run a subset of cases. The variable raises an error when it names an unknown case or no case at all.
+- **A draft output style, `output-styles/simple-english.md.next`, adds keyword labels, an emphasis rule, and a form table.** It ships only after its eval gate passes.
 - **A hook lints each Markdown file that Claude writes after a simple-english skill loads, in Claude Code.** It runs `ste_lint.py --quiet` after each `Write` or `Edit` of a `.md` file, at most 2 times per file, and gives Claude the findings. The skills also tell Claude to write a chat-only document to a file first and to end the reply with a `Lint:` line, for Claude Desktop, where chat shows hooks grayed out. In 2 Claude Desktop runs of the same README prompt, run 1 loaded `simple-english-docs` and ran no linter. Live check: a `claude -p --plugin-dir` session on 2026-10-28 (session `597ae804`) got `simple-english lint, pass 1 of 2` with both planted errors. Both the `skill.prompt` hook and the `Skill` tool hook ran, and the debug log had no `bypassed by` line. A `--plugin-dir` load is not a marketplace install, so that run does not test the managed-organization bypass of `skill.prompt`. A Claude Desktop check on 2026-10-28 installed a release zip that holds `hooks/` and `types/`. Desktop accepted the zip, both skills loaded, and the document reply ended with a `Lint:` line.
 
 ## 2026-10-27

@@ -19,6 +19,21 @@ class RunLinterTest(unittest.TestCase):
         self.assertIn("passive", result["by_rule"])
         self.assertIn("vague", result["by_rule"])
 
+    def test_nested_list_reaches_the_structure_rules(self):
+        result = lint.run_linter("- a\n  - b\n    - c\n")
+        self.assertIn("nesting", result["by_rule"])
+
+    def test_table_cell_with_two_sentences_reaches_the_structure_rules(self):
+        text = "| Form | Use |\n| --- | --- |\n| Table | Use it. Then stop. |\n"
+        self.assertIn("cell", lint.run_linter(text)["by_rule"])
+
+    def test_rogue_label_counts_as_an_error(self):
+        self.assertGreaterEqual(lint.run_linter("**NOTE:** the job retries.\n")["errors"], 1)
+
+    def test_prose_rules_still_read_unpacked_cells(self):
+        text = "| Step | Note |\n| --- | --- |\n| 1 | The build has been broken. |\n"
+        self.assertIn("perfect", lint.run_linter(text)["by_rule"])
+
     def test_clean_text_has_no_errors(self):
         self.assertEqual(lint.run_linter("Run the tests.\n")["errors"], 0)
 

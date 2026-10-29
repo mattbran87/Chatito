@@ -81,8 +81,13 @@ def failed_checks(result):
 class SummaryTest(unittest.TestCase):
     def test_weighted_score(self):
         self.assertAlmostEqual(report.weighted({d: 4 for d in report.WEIGHTS}), 4.0)
-        scores = {"correctness": 5, "fact_retention": 1, "readability": 1, "concision": 1, "safety": 1}
+        scores = {"correctness": 5, "fact_retention": 1, "readability": 1, "concision": 1, "safety": 1,
+                  "structure": 1}
         self.assertAlmostEqual(report.weighted(scores), 2.2)
+
+    def test_structure_is_a_weighted_dimension(self):
+        self.assertAlmostEqual(report.WEIGHTS["structure"], 0.10)
+        self.assertAlmostEqual(sum(report.WEIGHTS.values()), 1.0)
 
     def test_jev_bad_rate_follows_bad_when(self):
         rows = [jev_row("x", 0.9, answers_first=0.2), jev_row("x", 0.1, answers_first=0.9, case="b"),

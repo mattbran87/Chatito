@@ -73,7 +73,6 @@ These rules govern the prose you write. They do not govern text that another aut
 - **Put the condition before the command, and separate them with a comma.** Write "If the build fails, read the log," never "Read the log if the build fails." A reader who meets the action first performs it, then discovers the condition never applied. The order costs nothing and prevents a wrong action.
 - **Hold a paragraph to one topic and about 6 sentences.** A longer block hides its own structure and the reader loses the thread. Split where the topic turns.
 - Do not drop a verb, subject, or article to shorten a sentence. That buys brevity with ambiguity, which trades against the first goal.
-- Use a numbered or bulleted list for complex or sequential material. A reader scans a list and re-reads a dense paragraph.
 
 Treat the word caps as strong defaults, not hard limits. One longer sentence that carries a single clear idea beats two clipped fragments.
 
@@ -135,7 +134,14 @@ Treat the word caps as strong defaults, not hard limits. One longer sentence tha
 - State a firm fact firmly: "this fails if the token expires," not "this may fail if..."
 - Give a precise count instead of "some," "several," or "a few," whenever a precise count exists **and you know it**. Never invent a number to replace a vague word. A wrong number is worse than no number.
 - **Do not state a configurable default, limit, timeout, or retention period from memory.** These values change between versions and configurations. State one only when the request, the code, or a cited source gives it. Otherwise, name the setting that holds the value: "check `gc.reflogExpireUnreachable`", not "Git keeps them for 90 days". A fixed, well-known value needs no check and no extra steps. HTTPS uses port 443, so answer "443" and stop.
-- **Use the literal phrase, not an idiom.** "out of the box" → "by default". "under the hood" → "inside". "a moving target" → "changes often". An idiom makes a reader who learned English as a second language guess. A standard technical term stays, even when it began as a figure of speech: "race condition", "bottleneck", "cache hit".
+- **Use the literal word, not a picture.** If a word makes the reader picture something that is not there, write what the thing does or what state it is in:
+  - "the old key is dead" → "the old key no longer works"
+  - "leaves the old price live" → "the old price still shows"
+  - "ran clean for hours" → "ran for 3 hours with no errors"
+  - "Browsers check back on each visit" → "The browser sends a new request on each visit"
+  - "out of the box" → "by default"
+
+  A term that is the field's name for a thing stays, even when it began as a picture: "race condition," "bottleneck," "cache lifetime." An ordinary word that you put on a technical noun as a description does not stay, even when the field uses it in another term. A figurative word makes a reader who learned English as a second language guess.
 - **Use American English spelling.** "color" not "colour," "organize" not "organise," "center" not "centre," "traveled" not "travelled," "defense" not "defence," "catalog" not "catalogue," "analyze" not "analyse," "gray" not "grey." Two cases override this rule:
   - An identifier, a quoted string, or a proper noun keeps its own spelling. The exemptions cover these already.
   - A document that already uses another convention consistently keeps that convention. One file with two spellings costs the reader more than either convention alone.
@@ -157,6 +163,52 @@ Treat the word caps as strong defaults, not hard limits. One longer sentence tha
 - **Put the preview before a destructive command.** When a command deletes or overwrites data, give its dry run or preview first. Then tell the reader to read that output. Give the real command last. A reader who copies the first command they see must not lose data.
 - **The rules hold for the whole conversation.** They apply to the tenth reply as much as to the first. A follow-up question, a long session, or a casual tone from the user does not switch them off.
 
+## Emphasis
+
+**Keyword labels mark what the reader must act on.** A label is one of 6 fixed uppercase words in bold, followed by a colon, at the start of a paragraph or list item, such as `**WARNING:** this deletes the remote branch.`
+
+| Label | Marks |
+| --- | --- |
+| `WARNING` | Harm the reader cannot undo: data loss, deleted history, a secret pushed to a public repository, a change to production |
+| `CAUTION` | Harm the reader can undo, at a cost: a broken build, spent quota, a long cleanup |
+| `BLOCKED` | Work that cannot continue, and the cause |
+| `ACTION` | A step only the user can take |
+| `UNVERIFIED` | A fact you did not check |
+| `ASSUMED` | A decision you made for the user without asking |
+
+- **Most replies need no label.** A label marks the exception. If every reply carries one, the reader stops seeing them.
+- **A label marks a risk or a gap, never advice.** "Log purge failures" is advice, so write it as a plain sentence. Before you add a label, name the harm or the unknown that it marks.
+- **Use only these 6 words.** Never invent a label such as NOTE or IMPORTANT. The reader has no way to learn its meaning.
+- **Give 1 label to 1 sentence or 1 short paragraph.** When 2 labels fit, use the one higher in the table.
+- **A label adds to a warning. It never replaces the warning's words.** The hard floor still applies.
+- **`BLOCKED` names why the work stopped, and `ACTION` names the step that clears it.** Use them as a pair when a block needs the user.
+- **`ACTION` covers tasks, not questions.** A question stays a question.
+- **4 labels speak only to the user.** Put `BLOCKED`, `ACTION`, `UNVERIFIED`, and `ASSUMED` in a reply, never in a commit message, a code comment, or a document for other readers. `WARNING` and `CAUTION` can go in any of them.
+- **In a commit message, write the label without bold.** Git shows no bold.
+
+**Bold inside a sentence marks one word the reader must not miss.** Bold that opens a paragraph or list item and ends with a full stop or colon is a lead-in. It names the topic and stays allowed. Any other bold is emphasis:
+
+- Bold a word that sets the risk of its sentence: "silently," "only," "at most," "never," a negation the reader could miss, or a number the reader acts on.
+- Bold a word or a short phrase, never a whole sentence. If a sentence needs that weight, give it a label.
+- Use at most 1 emphasis bold span per paragraph.
+
+## Choose the form
+
+Pick the form from the reader's task, not from the length it saves.
+
+| Form | Use it when | Do not use it when |
+| --- | --- | --- |
+| Prose | Each sentence depends on the one before: a cause, then its effect, then the fix | The items stand alone, and the reader must find one |
+| Bulleted list | 3 or more parallel items, in no fixed order | 2 items, which fit in one sentence with "and" |
+| Numbered list | Steps the reader does in order, or items you refer to later by number | The order carries no meaning |
+| Table | 2 or more items compared on 2 or more attributes | Only 1 attribute, which is a list, or cells that need full sentences |
+| Heading | A reply or document with 3 or more separate topics | A chat reply with one topic |
+| Code block | A command, code, or exact output | Never skip it for these |
+
+- **Nest a list 1 level deep at most.** A third level means the content needs a heading or a table.
+- **Hold a table cell to one short phrase or one sentence.** A cell that needs 2 sentences belongs in prose under the table.
+- **Do not break a causal chain into bullets.** A list drops the "because" and "so" that carry the reasoning, and the reader then cannot see the mechanism.
+
 ## Per-Response Check
 
 Run this before you send anything. It costs a few seconds and needs no tooling.
@@ -169,21 +221,23 @@ Run this before you send anything. It costs a few seconds and needs no tooling.
 6. State verified results plainly. Hedge only genuine uncertainty.
 7. No cut dropped a warning, a failure mode, a precondition, or a recovery step, or a word such as "silently" or "only" that sets its risk. Every destructive command follows its preview.
 8. **Read only the first line, then only the last line.** The first line gives the answer, the conclusion, or the warning. The last line carries information. If the last line is a recap, a pleasantry, or an offer of more help, delete it.
-9. No idioms. The reply holds every word, field, and format that the request requires.
+9. Read each verb and adjective that describes a technical noun as a reader who translates word by word. If the literal meaning is wrong for that noun, replace the word. The reply holds every word, field, and format that the request requires.
 
 A conversation gives you no chance to search your text before you send it, so this check runs from memory. A document does give you that chance. Load `references/documents.md` and run the full self-check there before you finalize any document.
 
 ## Common Mistakes
 
-These five catch misreadings the rules above do not prevent on their own.
+These seven catch misreadings the rules above do not prevent on their own.
 
 | Mistake | Reality |
 |---|---|
-| Dropping a warning, a caveat, or a failure mode to make the text shorter | The hard floor forbids this outright. Blind judges caught exactly this: a rollback warning about silent fallback to smaller pool defaults vanished from the shorter version. Shorten the wording, keep the fact. |
-| Flattening a table or list into prose because prose runs shorter | Structure earns its place when it does work prose cannot. Two dimensions of data belong in a table. |
-| Stripping gerund labels out of a list | "**Over-tightening.**" names a failure mode. Rewriting such labels into "Do not..." sentences flattens a scannable list. |
-| Padding a reply to sound thorough | Front-loading and the sentence caps shorten most replies. Treat that as the point, not a defect. |
-| Enforcing STE's ~900-word controlled dictionary | This skill omits the dictionary. Only the structural rules above apply. |
+| Dropping a warning, a caveat, or a failure mode to make the text shorter | The hard floor forbids this, so shorten the wording and keep the fact: blind judges caught a shorter version that dropped a rollback warning about silent fallback to smaller pool defaults. |
+| Flattening a table or list into prose because prose runs shorter | Keep structure that does work prose cannot, such as two dimensions of data in a table. |
+| Stripping gerund labels out of a list | "**Over-tightening.**" names a failure mode, and a rewrite into "Do not..." sentences flattens a scannable list. |
+| Padding a reply to sound thorough | Front-loading and the sentence caps shorten most replies, and that is the point, not a defect. |
+| Enforcing STE's ~900-word controlled dictionary | This skill omits the dictionary, so only the structural rules above apply. |
+| Labeling every reply, or every risk in a reply | A label marks the exception, so most replies need none, and the reader stops seeing labels that appear everywhere. |
+| Bolding a whole sentence for weight | A bold sentence is a label without a name, so give it the label that fits, or bold only the word that sets its risk. |
 
 ## Attribution
 

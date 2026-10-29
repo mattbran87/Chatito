@@ -16,14 +16,19 @@ class CasesTest(unittest.TestCase):
     def setUp(self):
         self.cases = common.load_cases()
 
-    def test_fifteen_cases_with_unique_ids(self):
+    def test_twenty_cases_with_unique_ids(self):
         ids = [case["id"] for case in self.cases]
-        self.assertEqual(len(ids), 15)
-        self.assertEqual(len(set(ids)), 15)
+        self.assertEqual(len(ids), 20)
+        self.assertEqual(len(set(ids)), 20)
+
+    def test_structure_cases_exist(self):
+        ids = {case["id"] for case in self.cases}
+        self.assertTrue({"compare-options", "ordered-steps", "causal-chain",
+                         "risky-unverified", "plain-answer"} <= ids)
 
     def test_kind_counts_match_the_spec(self):
         self.assertEqual(Counter(case["kind"] for case in self.cases),
-                         {"chat": 7, "commit": 4, "doc": 4})
+                         {"chat": 12, "commit": 4, "doc": 4})
 
     def test_every_case_is_complete(self):
         for case in self.cases:
@@ -80,12 +85,23 @@ class RubricTest(unittest.TestCase):
         for name in common.load_conditions()["conditions"]:
             self.assertIsNone(re.search(r"\b%s\b" % name, block, re.I), name)
 
+    def test_structure_questions_do_not_gate_and_reach_their_cases(self):
+        questions = json.loads((common.EVALS_DIR / "jev_questions.json").read_text(encoding="utf-8"))
+        for key in ("table_missed", "chain_bulleted", "label_misgraded", "label_overuse"):
+            self.assertFalse(questions[key]["gating"], key)
+        self.assertIn("compare-options", questions["table_missed"]["cases"])
+        self.assertIn("causal-chain", questions["chain_bulleted"]["cases"])
+        self.assertIn("risky-unverified", questions["label_misgraded"]["cases"])
+        self.assertIn("plain-answer", questions["label_overuse"]["cases"])
+        for key in ("answers_first", "filler", "idiom"):
+            self.assertIn("plain-answer", questions[key]["cases"], key)
+
 
 class RubricContentTest(unittest.TestCase):
     def test_judge_block_has_dimensions_and_the_safety_rule(self):
         rubric = (common.EVALS_DIR / "rubric.md").read_text(encoding="utf-8")
         block = rubric.split(BEGIN, 1)[1].split(END, 1)[0]
-        for dim in ("correctness", "fact_retention", "readability", "concision", "safety"):
+        for dim in ("correctness", "fact_retention", "readability", "concision", "safety", "structure"):
             self.assertIn(dim, block)
         self.assertIn("When the task carries no risk, score safety 5", block)
 
@@ -95,7 +111,8 @@ class JevQuestionsTest(unittest.TestCase):
         questions = json.loads((common.EVALS_DIR / "jev_questions.json").read_text(encoding="utf-8"))
         ids = {case["id"] for case in common.load_cases()}
         self.assertEqual(set(questions),
-                         {"answers_first", "invents_cause", "filler", "idiom", "drops_warning"})
+                         {"answers_first", "invents_cause", "filler", "idiom", "drops_warning",
+                          "table_missed", "chain_bulleted", "label_misgraded", "label_overuse"})
         for key, spec in questions.items():
             with self.subTest(question=key):
                 self.assertTrue(spec["question"].strip())

@@ -16,9 +16,11 @@ Usage:
     python ste_lint.py --quiet FILE         one line per finding, no footer
     python ste_lint.py --selftest           verify the patterns still work
     python ste_lint.py --json FILE          machine-readable output
+    python ste_lint.py --prose FILE         word and sentence rules only
+    python ste_lint.py --structure FILE     label, emphasis, list, and table rules only
 
 Run --selftest after you install or upgrade this skill, after anyone edits this
-file, or when a clean result looks wrong. It verifies the patterns against 19
+file, or when a clean result looks wrong. It verifies the patterns against 32
 planted cases. Do not run it per document: the code is deterministic, so a
 second run on an unchanged file tells you nothing new.
 
@@ -329,12 +331,171 @@ def check_paragraphs(lines):
     return findings
 
 
-def lint(path):
-    text = Path(path).read_text(encoding="utf-8", errors="replace")
-    lines = mask(text)
-    found = check_patterns(lines) + check_length(lines) + check_paragraphs(lines)
-    return sorted(found, key=lambda x: (x[0], x[2]))
+# --------------------------------------------------------------------------
+# Structure checks
+# --------------------------------------------------------------------------
 
+LABELS = ("WARNING", "CAUTION", "BLOCKED", "ACTION", "UNVERIFIED", "ASSUMED")
+
+# Labels a writer reaches for that are not on the list. A deny-list, not "any
+# uppercase bold word": a bold acronym lead-in such as "**API:**" is correct.
+ROGUE_LABELS = ("NOTE", "NB", "IMPORTANT", "TIP", "HINT", "INFO", "FYI", "DANGER",
+                "ALERT", "ATTENTION", "CRITICAL", "TODO")
+
+_ITEM = re.compile(r"^(\s*)(?:([-*+])|\d+[.)])\s+")
+_LABEL = re.compile(r"^\*\*([A-Za-z]{2,}):\*\*")
+_BOLD = re.compile(r"\*\*(?=\S)(.+?)(?<=\S)\*\*")
+# A lead-in opens the body and ends with a full stop or colon, inside the bold or right after it,
+# or is a bold span followed by a dash: "**If it fails** - text".
+_LEAD_IN = re.compile(r"^\*\*[^*\n]+?(?:[.:]\*\*|\*\*[.:])|^\*\*[^*\n]+\*\*\s+[—–-]\s")
+_QUOTE = re.compile(r"^\s*(?:>\s?)+")
+_CELL_BREAK = re.compile(r"[.!?]\s+[A-Z]")
+
+
+def structure_lines(text):
+    """Blank fenced code and inline code, and keep indentation, which nesting needs.
+
+    mask() blanks every line indented 4 or more spaces as code, so a nested list
+    item disappears there. These checks read layout, so they get their own view.
+    """
+    out, fence = [], None
+    for line in text.split("\n"):
+        stripped = line.strip()
+        marker = "```" if stripped.startswith("```") else "~~~" if stripped.startswith("~~~") else None
+        if marker and fence in (None, marker):
+            fence = None if fence else marker
+            out.append("")
+            continue
+        out.append("" if fence else re.sub(r"`[^`]*`", " ", line))
+    return out
+
+
+def _body(line):
+    line = _QUOTE.sub("", line)
+    m = _ITEM.match(line)
+    return line[m.end():] if m else line.strip()
+
+
+def check_labels(lines):
+    findings, seen = [], set()
+    for i, line in enumerate(lines, 1):
+        if line.lstrip().startswith("#"):
+            seen = set()
+            continue
+        m = _LABEL.match(_body(line))
+        if not m:
+            continue
+        word = m.group(1)
+        if word.upper() in ROGUE_LABELS:
+            findings.append((i, "error", "label", word,
+                             "label not on the list - use " + ", ".join(LABELS) + ", or no label"))
+        elif word in LABELS:
+            if word in seen:
+                findings.append((i, "warn", "label-repeat", word,
+                                 "same label twice in one section - most replies need at most 1"))
+            seen.add(word)
+    return findings
+
+
+def check_emphasis(lines):
+    findings = []
+    start, count = None, 0
+
+    def close():
+        if count > 1:
+            findings.append((start, "warn", "emphasis", f"{count} bold spans",
+                             "more than 1 emphasis bold span in a paragraph - keep the one that sets the risk"))
+
+    for i, line in enumerate(lines, 1):
+        s = line.strip()
+        item = _ITEM.match(line)
+        if not s or s.startswith("#") or s.startswith("|") or item:
+            close()
+            start, count = None, 0
+            if not item:
+                continue
+        body = _body(line)
+        if start is None:
+            start = i
+        count += len(_BOLD.findall(body)) - (1 if _LEAD_IN.match(body) else 0)
+    close()
+    return findings
+
+
+def check_nesting(lines):
+    findings, stack = [], []
+    for i, line in enumerate(lines, 1):
+        m = _ITEM.match(line)
+        if not m:
+            if line.strip() and not line.startswith((" ", "\t")):
+                stack = []
+            continue
+        indent = len(m.group(1).expandtabs(4))
+        while stack and indent < stack[-1]:
+            stack.pop()
+        if not stack or indent > stack[-1]:
+            stack.append(indent)
+        if len(stack) > 2:
+            findings.append((i, "warn", "nesting", f"level {len(stack) - 1}",
+                             "list nested deeper than 1 level - use a heading or a table"))
+    return findings
+
+
+def check_two_item(lines):
+    findings = []
+    start, bullets, numbered = None, 0, False
+
+    def close():
+        if bullets == 2 and not numbered:
+            findings.append((start, "warn", "two-item", "2 items",
+                             "bulleted list with 2 items - one sentence with 'and' reads as fast"))
+
+    for i, line in enumerate(lines, 1):
+        m = _ITEM.match(line)
+        if m and len(m.group(1)) < 2:
+            if start is None:
+                start = i
+            if m.group(2):
+                bullets += 1
+            else:
+                numbered = True
+            continue
+        if m or not line.strip() or line.startswith((" ", "\t")):
+            continue
+        close()
+        start, bullets, numbered = None, 0, False
+    close()
+    return findings
+
+
+def check_cells(lines):
+    findings = []
+    for i, line in enumerate(lines, 1):
+        s = line.strip()
+        if not s.startswith("|") or set(s) <= set("|-: "):
+            continue
+        for cell in s.strip("|").split("|"):
+            if _CELL_BREAK.search(re.sub(r"^\d+[.)]\s+", "", cell.strip())):
+                findings.append((i, "warn", "cell", cell.strip()[:44],
+                                 "table cell with 2 or more sentences - move the detail into prose under the table"))
+    return findings
+
+
+def check_structure(lines):
+    return (check_labels(lines) + check_emphasis(lines) + check_nesting(lines)
+            + check_two_item(lines) + check_cells(lines))
+
+
+def lint(path, scope="all"):
+    """scope "prose" runs the word and sentence rules, "structure" the layout rules, "all" both."""
+    text = Path(path).read_text(encoding="utf-8", errors="replace")
+    found = []
+    if scope in ("all", "prose"):
+        lines = mask(text)
+        found += check_patterns(lines) + check_length(lines) + check_paragraphs(lines)
+    if scope in ("all", "structure"):
+        found += check_structure(structure_lines(text))
+    return sorted(found, key=lambda x: (x[0], x[2]))
 
 # --------------------------------------------------------------------------
 # Self-test
@@ -360,6 +521,19 @@ SELFTEST = [
     ("- Read the log if the build fails.", "condition", True),
     ("- If the build fails, read the log.", "condition", False),
     ("- The script exits with status 1 when the directory disappears.", "condition", False),
+    ("**NOTE:** the job retries.", "label", True),
+    ("**WARNING:** this deletes the branch.", "label", False),
+    ("**API:** the endpoint changed.", "label", False),
+    ("**WARNING:** a.\n\n**WARNING:** b.", "label-repeat", True),
+    ("**WARNING:** a.\n\n# Next\n\n**WARNING:** b.", "label-repeat", False),
+    ("The job **silently** drops rows and **only** logs once.", "emphasis", True),
+    ("**Retries.** The job **silently** drops rows.", "emphasis", False),
+    ("- a\n  - b\n    - c", "nesting", True),
+    ("- a\n  - b", "nesting", False),
+    ("- a\n- b", "two-item", True),
+    ("- a\n- b\n- c", "two-item", False),
+    ("| Form | Use |\n| --- | --- |\n| Table | Use it. Then stop. |", "cell", True),
+    ("| Form | Use |\n| --- | --- |\n| Table | Use it for 2 attributes. |", "cell", False),
 ]
 
 
@@ -367,8 +541,8 @@ def selftest():
     ok = bad = 0
     print("Simple English linter - self test\n")
     for sentence, rule, expect in SELFTEST:
-        lines = mask(sentence)
-        hits = {f[2] for f in check_patterns(lines)}
+        hits = {f[2] for f in check_patterns(mask(sentence))}
+        hits |= {f[2] for f in check_structure(structure_lines(sentence))}
         got = rule in hits
         if got == expect:
             ok += 1
@@ -376,7 +550,8 @@ def selftest():
         else:
             bad += 1
             mark = "FAIL"
-        print(f"  {mark}  {rule:10} expect={'hit ' if expect else 'miss'}  {sentence[:60]}")
+        shown = sentence.replace("\n", " / ")[:60]
+        print(f"  {mark}  {rule:12} expect={'hit ' if expect else 'miss'}  {shown}")
     print(f"\n{ok} passed, {bad} failed")
     if bad:
         print("\nThe linter does not work correctly here. Do not trust its output.")
@@ -392,6 +567,11 @@ def main():
     ap.add_argument("--json", action="store_true", help="machine-readable output")
     ap.add_argument("--quiet", "-q", action="store_true",
                     help="one line per finding, no footer (for repeat runs)")
+    scope = ap.add_mutually_exclusive_group()
+    scope.add_argument("--prose", action="store_const", const="prose", dest="scope",
+                       help="only the word and sentence rules")
+    scope.add_argument("--structure", action="store_const", const="structure", dest="scope",
+                       help="only the label, emphasis, list, and table rules")
     args = ap.parse_args()
 
     if args.selftest:
@@ -403,7 +583,7 @@ def main():
     all_findings = {}
     errors = 0
     for f in args.files:
-        found = lint(f)
+        found = lint(f, args.scope or "all")
         all_findings[f] = found
         errors += sum(1 for x in found if x[1] == "error")
 
@@ -432,7 +612,7 @@ def main():
 
     if not args.quiet:
         print("\n" + "=" * 72)
-        print("This linter reaches 10 rules. It says nothing about noun clusters, list")
+        print("This linter reaches 16 rules. It says nothing about noun clusters, list")
         print("parallelism, one term per concept beyond the fixed table, front-loading,")
         print("or whether a claim names its mechanism. Those still need a read.")
     return 1 if errors else 0

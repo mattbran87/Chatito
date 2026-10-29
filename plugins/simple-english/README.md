@@ -100,12 +100,12 @@ Each skill carries its own copy of `scripts/ste_lint.py`, because a skill
 cannot read files from another skill's folder. The two copies must stay
 identical. If you change one, copy it over the other.
 
-The linter checks the 10 rules that a search can reach. It needs Python 3.8
+The linter checks the 16 rules that a search can reach: 10 about words and sentences, and 6 about labels, emphasis, lists, and tables. It needs Python 3.8
 and the standard library only. Without Python, the skills still work and fall
 back to search patterns that Claude runs by hand.
 
 Run the self-test after you change the linter. It must report
-`19 passed, 0 failed`:
+`32 passed, 0 failed`:
 
 ```
 python3 plugins/simple-english/skills/simple-english/scripts/ste_lint.py --selftest
@@ -142,7 +142,7 @@ invoking it and keeps the slash command. Restart Claude Code after the edit.
 
 ## Evals
 
-`evals/` holds a harness that runs 15 cases with and without the rules, and
+`evals/` holds a harness that runs 20 cases with and without the rules, and
 scores the responses with the linter, a blind Claude judge, and Jev. Use it
 before you change a rule. See [evals/README.md](evals/README.md).
 

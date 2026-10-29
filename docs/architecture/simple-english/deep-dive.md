@@ -86,15 +86,16 @@ records this.
 
 ## The linter
 
-`skills/simple-english/scripts/ste_lint.py` checks the 10 rules that a search
+`skills/simple-english/scripts/ste_lint.py` checks the 16 rules that a search
 can reach. It uses the Python standard library only. Its `RULES` list, at
-`ste_lint.py:111`, holds 8 patterns, and 2 functions add the length checks.
+`ste_lint.py:113`, holds 8 patterns, and 2 functions add the length checks.
+`check_structure` adds 6 rules about labels, emphasis, lists, and tables. It reads `structure_lines()`, a view that keeps indentation, because `mask()` blanks every line indented 4 or more spaces.
 The rules fall in 2 tiers:
 
 | Tier | Output label | Rules |
 | --- | --- | --- |
-| `error` | `ERROR` | `perfect` (stacked auxiliaries), `passive`, `spelling` (British) |
-| `warn` | `review` | `gerund`, `vague`, `modal`, `canonical`, `condition`, `length`, `paragraph` |
+| `error` | `ERROR` | `perfect` (stacked auxiliaries), `passive`, `spelling` (British), `label` (a label from `ROGUE_LABELS`) |
+| `warn` | `review` | `gerund`, `vague`, `modal`, `canonical`, `condition`, `length`, `paragraph`, `label-repeat`, `emphasis`, `nesting`, `two-item`, `cell` |
 
 The exit code is 1 when the linter finds an error, and 0 for review hits
 only. A review hit asks for a judgment, because each of those patterns also
@@ -102,15 +103,14 @@ matches correct text. For example, `modal` flagged 29 hits in the measured
 corpus, and 17 of them were real counterfactuals, as the precision note in
 `RULES` records. The caps are `PROSE_CAP_DESCRIPTIVE` (25 words),
 `PROSE_CAP_PROCEDURAL` (20 words), and `PARAGRAPH_CAP` (6 sentences). The
-`--selftest` flag runs 19 planted cases, and it reported `19 passed, 0
-failed` at `1d7c77c`.
+`--selftest` flag runs 32 planted cases, and it reports `32 passed, 0
+failed`. `tests/test_ste_lint.py` runs it and fails on any other result.
 
 Each skill carries its own copy of the script, because a skill cannot read
 files from another skill's folder (`plugins/simple-english/README.md`, "The linter"). The 2 copies
 are `skills/simple-english/scripts/ste_lint.py` and
-`skills/simple-english-docs/scripts/ste_lint.py`. `cmp` found no difference
-between them at `1d7c77c`. `plugins/simple-english/README.md` says to keep them identical, but no
-test in the plugin tests compares them. The eval uses only the first copy:
+`skills/simple-english-docs/scripts/ste_lint.py`. `plugins/simple-english/README.md` says to keep them identical.
+`tests/test_ste_lint.py` fails when the 2 copies differ. The eval uses only the first copy:
 `LINTER` in `evals/lint.py` points at it.
 
 The linter skips 2 groups of text, and it leaves out 5 checks:
@@ -154,13 +154,13 @@ rerun resumes where the last run stopped. Only `evals/generate.py` has
 `--retry-failed`. It skips a row that failed on its content, unless you pass
 the flag. `evals/judge.py` sends a failed group again on every rerun.
 
-With the 15 cases in `evals/cases.jsonl`, the default 3 trials, and the 3
-conditions in `evals/conditions.json`, `evals/generate.py` makes 135 rows.
-`evals/judge.py` then makes 45 group calls. Retries add more calls.
+With the 20 cases in `evals/cases.jsonl`, the default 3 trials, and the 3
+conditions in `evals/conditions.json`, `evals/generate.py` makes 180 rows.
+`evals/judge.py` then makes 60 group calls. Retries add more calls.
 
 ## The gate
 
-`report.gate`, at `report.py:206`, compares a candidate condition with a
+`report.gate`, at `report.py:207`, compares a candidate condition with a
 reference condition from the same run. It first refuses, with exit 2, when
 the comparison has no fair basis:
 
@@ -179,8 +179,8 @@ share a row in this table:
 | blockers | it has no more blockers than the reference |
 | correctness, safety | it scores at least the reference minus `TOLERANCE` (0.1) |
 | weighted | it scores higher than the reference |
-| lint errors | it has at most 10% more linter errors than the reference (`LINT_MARGIN`, `report.py:21`) |
-| each gating Jev question | it has at most 1 more bad answer than the reference (`JEV_MARGIN`, `report.py:22`) |
+| lint errors | it has at most 10% more linter errors than the reference (`LINT_MARGIN`, `report.py:22`) |
+| each gating Jev question | it has at most 1 more bad answer than the reference (`JEV_MARGIN`, `report.py:23`) |
 
 The 2 margins came from the spread of 2 runs. The cycle 3 style ran twice,
 and the 2 style texts differ by 1 sentence about caveats. Between the runs,
@@ -232,17 +232,16 @@ least 3 "yes" and 3 "no" labels (`MIN_EACH`). Round 2 passed all 5 questions
   skill with empty metadata, so the skill has no description to trigger on.
   `claude plugin validate` catches it (the development repository's CLAUDE.md).
 - **Keep the 2 copies of `ste_lint.py` identical.** If they differ, the
-  documents skill and the eval score text against different rules. No test
-  checks this, so compare them with `cmp` after an edit.
+  documents skill and the eval score text against different rules. `tests/test_ste_lint.py` fails when the 2 copies differ.
 - **Edit `evals/conditions.json` only for the length of a comparison.** The
   "Compare a rule change" steps add a condition such as `skill-next` there.
   If you commit that edit,
   `test_data.ConditionsTest.test_three_conditions_and_their_files_exist`
-  fails, because `tests/test_data.py:66` asserts exactly `baseline`, `skill`,
+  fails, because `tests/test_data.py:71` asserts exactly `baseline`, `skill`,
   and `style`. A copy of the plugin with a `skill-next` condition and its `SKILL.md.next`
   file added failed 2 tests (7 when the `.next` file is missing). 19 tests read the file while they run, and
   `tests/test_calibrate.py` reads it once at import. Also, `evals/report.py`
-  reads the live file (`report.py:366`), so run the report before you revert
+  reads the live file (`report.py:367`), so run the report before you revert
   the edit.
 - **Claude never fills in `labels.jsonl` values.** Calibration measures Jev
   against a person, not against another model (the docstring of

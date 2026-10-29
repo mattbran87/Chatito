@@ -9,7 +9,7 @@ import sys
 import common
 
 BEGIN, END = "<!-- judge:begin -->", "<!-- judge:end -->"
-DIMENSIONS = ("correctness", "fact_retention", "readability", "concision", "safety")
+DIMENSIONS = ("correctness", "fact_retention", "readability", "concision", "safety", "structure")
 LABELS = "ABCDEFGH"
 
 
